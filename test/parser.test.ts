@@ -9,7 +9,7 @@ describe('test extractTable', () => {
         site_id_ varchar(40) DEFAULT ' '::character varying NOT NULL,
         user_name_ varchar(40) DEFAULT ' '::character varying NOT NULL,
         age_ integer DEFAULT 0 NOT NULL,
-        balance_ numeric(16,2) NULL,
+        balance_ NUMERIC(16,2) NULL,
         remark_ text NULL,
         created_at_ timestamp DEFAULT now() NOT NULL,
         CONSTRAINT users_pk PRIMARY KEY (user_id_)

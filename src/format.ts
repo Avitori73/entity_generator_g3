@@ -1,25 +1,21 @@
-import { promises as fs } from 'node:fs'
-import { sync as globSync } from 'glob'
+import fs from 'node:fs'
 import { format } from 'prettier'
+import { globSync } from 'tinyglobby'
+import { getConfig } from './config'
 
-// Prettier 配置
-const prettierConfig = {
-  tabWidth: 4,
-  printWidth: 200,
-  plugins: ['prettier-plugin-java'],
+export async function formatFiles(path: string): Promise<void> {
+  const config = await getConfig()
+
+  const files = globSync(path)
+  for (const file of files) {
+    const fileContent = fs.readFileSync(file, 'utf8')
+    const formatted = await format(fileContent, { ...config.prettierOptions, filepath: file })
+
+    fs.writeFileSync(file, formatted)
+  }
 }
 
-export async function formatFiles(): Promise<void> {
-  // 获取所有 Java 文件
-  const files = globSync('output/**/*.java', {
-    ignore: ['node_modules/**', '.git/**'],
-    nodir: true,
-  })
-
-  for (const file of files) {
-    const fileContent = await fs.readFile(file, 'utf8')
-    const formatted = await format(fileContent, { ...prettierConfig, filepath: file })
-
-    await fs.writeFile(file, formatted)
-  }
+export async function formatJavaCode(content: string): Promise<string> {
+  const config = await getConfig()
+  return format(content, { ...config.prettierOptions, parser: 'java' })
 }

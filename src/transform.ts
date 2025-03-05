@@ -1,5 +1,6 @@
 import type { ColumnDefinition, CreateTable } from './parse'
 import * as changeCase from 'change-case'
+import { getConfig } from './config'
 
 export interface JavaFile {
   type: 'class' | 'interface'
@@ -57,7 +58,7 @@ export function writeJavaFile(javaFile: JavaFile): string[] {
   return lines
 }
 
-export function convertCreateTableToJavaRepositoryInterface(createTable: CreateTable): JavaFile {
+export async function transformCreateTableToJavaRepositoryInterface(createTable: CreateTable): Promise<JavaFile> {
   const EntityName = changeCase.pascalCase(createTable.name)
   const packagePath = 'package com.a1stream.domain.repository;'
   const imports = [
@@ -77,7 +78,7 @@ export function convertCreateTableToJavaRepositoryInterface(createTable: CreateT
   }
 }
 
-export function convertCreateTableToJavaEntityClass(createTable: CreateTable): JavaFile {
+export async function transformCreateTableToJavaEntityClass(createTable: CreateTable): Promise<JavaFile> {
   const properties: JavaProperty[] = []
   properties.push({
     field: {
@@ -89,10 +90,12 @@ export function convertCreateTableToJavaEntityClass(createTable: CreateTable): J
       defaultValue: '1L',
     },
   })
-  properties.push(...createTable.definitions.map((column) => {
+
+  const javaProperties = await Promise.all(createTable.definitions.map(async (column) => {
     const isPrimaryKey = createTable.primaryKeys.includes(column.name)
-    return convertColumnDefinitionToJavaProperty(column, isPrimaryKey)
+    return await transformColumnDefinitionToJavaProperty(column, isPrimaryKey)
   }))
+  properties.push(...javaProperties)
 
   const interfaces: JavaInterface[] = [
     { name: 'Entity' },
@@ -141,14 +144,14 @@ export function writeJavaProperty(property: JavaProperty): string[] {
   return lines
 }
 
-export function convertColumnDefinitionToJavaProperty(column: ColumnDefinition, isPrimaryKey: boolean = false): JavaProperty {
+export async function transformColumnDefinitionToJavaProperty(column: ColumnDefinition, isPrimaryKey: boolean = false): Promise<JavaProperty> {
   const field: JavaField = {
     name: changeCase.camelCase(column.name),
-    type: getJavaType(column.datatype),
+    type: await getJavaType(column.datatype),
     accessModifier: 'private',
     isStatic: false,
     isFinal: false,
-    defaultValue: getDefaultValue(column.datatype),
+    defaultValue: await getDefaultValue(column.datatype),
   }
 
   const interfaces: JavaInterface[] = []
@@ -160,34 +163,18 @@ export function convertColumnDefinitionToJavaProperty(column: ColumnDefinition, 
   return { field, interfaces }
 }
 
-function getJavaType(datatype: string): string {
-  switch (datatype) {
-    case 'varchar':
-    case 'text':
-      return 'String'
-    case 'int4':
-      return 'Integer'
-    case 'numeric':
-      return 'BigDecimal'
-    case 'timestamptz':
-      return 'LocalDateTime'
-    default:
-      throw new Error(`Unknown datatype: ${datatype}`)
+async function getJavaType(datatype: string): Promise<string> {
+  const config = await getConfig()
+  const javaType = config.dataTypeMap[datatype]
+  if (!javaType) {
+    throw new Error(`Unsupported datatype: ${datatype}`)
   }
+  return javaType
 }
 
-function getDefaultValue(datatype: string): string | null {
-  switch (datatype) {
-    case 'numeric':
-      return 'BigDecimal.ZERO'
-    case 'varchar':
-    case 'text':
-    case 'int4':
-    case 'timestamptz':
-      return null
-    default:
-      throw new Error(`Unknown datatype: ${datatype}`)
-  }
+async function getDefaultValue(datatype: string): Promise<string | null> {
+  const config = await getConfig()
+  return config.defaultValueMap[datatype] ?? null
 }
 
 function getColumnInterface(column: ColumnDefinition): JavaInterface {
