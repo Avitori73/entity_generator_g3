@@ -37,7 +37,7 @@
     "prepublishOnly": "nr build",
     "release": "bumpp && pnpm publish",
     "start": "tsx src/index.ts",
-    "cli": "tsx src/commands/neg.ts",
+    "cli": "tsx src/commands/xeg.ts",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
     "prepare": "simple-git-hooks"

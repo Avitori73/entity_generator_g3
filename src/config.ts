@@ -1,5 +1,7 @@
 import type { Options as PrettierOptions } from 'prettier'
 
+const javaPlugin = import.meta.resolve('prettier-plugin-java')
+
 interface Config {
   prettierOptions: PrettierOptions
   dataTypeMap: Record<string, string>
@@ -10,7 +12,7 @@ const defaultConfig: Config = {
   prettierOptions: {
     tabWidth: 4,
     printWidth: 200,
-    plugins: ['prettier-plugin-java'],
+    plugins: [javaPlugin],
   },
   dataTypeMap: {
     'bigint': 'Long',
