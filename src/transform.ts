@@ -1,62 +1,6 @@
-import type { ColumnDefinition, CreateTable } from './parse'
+import type { ColumnDefinition, CreateTable, JavaField, JavaFile, JavaInterface, JavaProperty } from './type'
 import * as changeCase from 'change-case'
 import { getConfig } from './config'
-
-export interface JavaFile {
-  type: 'class' | 'interface'
-  name: string
-  properties?: JavaProperty[]
-  accessModifier: 'public' | 'private' | 'protected'
-  package: string
-  extends?: string
-  interfaces?: JavaInterface[]
-  imports?: string[]
-}
-
-export interface JavaField {
-  name: string
-  type: string
-  accessModifier: 'public' | 'private' | 'protected'
-  isStatic: boolean
-  isFinal: boolean
-  defaultValue: string | null
-}
-
-export interface JavaInterface {
-  name: string
-  attributes?: string[]
-}
-
-export interface JavaProperty {
-  field: JavaField
-  interfaces?: JavaInterface[]
-}
-
-export function writeJavaFile(javaFile: JavaFile): string[] {
-  const lines = []
-
-  lines.push(javaFile.package)
-
-  javaFile.imports?.forEach((i) => {
-    lines.push(i)
-  })
-
-  javaFile.interfaces?.forEach((i) => {
-    lines.push(`@${i.name}${i.attributes ? `(${i.attributes.join(', ')})` : ''}`)
-  })
-
-  lines.push(`${javaFile.accessModifier} ${javaFile.type} ${javaFile.name} ${javaFile.extends
-    ? `extends ${javaFile.extends}`
-    : ''} {`)
-
-  javaFile.properties?.forEach((p) => {
-    lines.push(...writeJavaProperty(p))
-  })
-
-  lines.push('}')
-
-  return lines
-}
 
 export async function transformCreateTableToJavaRepositoryInterface(createTable: CreateTable): Promise<JavaFile> {
   const EntityName = changeCase.pascalCase(createTable.name)
@@ -128,20 +72,6 @@ export async function transformCreateTableToJavaEntityClass(createTable: CreateT
     accessModifier: 'public',
     extends: 'BaseEntity',
   }
-}
-
-export function writeJavaProperty(property: JavaProperty): string[] {
-  const lines = []
-
-  property.interfaces?.forEach((i) => {
-    const attributes = i.attributes ? `(${i.attributes.join(', ')})` : ''
-    lines.push(`@${i.name}${attributes}`)
-  })
-
-  const field = property.field
-  lines.push(`${field.accessModifier} ${field.isStatic ? 'static ' : ''}${field.isFinal ? 'final ' : ''}${field.type} ${field.name}${field.defaultValue !== null ? ` = ${field.defaultValue}` : ''};`)
-
-  return lines
 }
 
 export async function transformColumnDefinitionToJavaProperty(column: ColumnDefinition, isPrimaryKey: boolean = false): Promise<JavaProperty> {

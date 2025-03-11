@@ -1,21 +1,7 @@
 import type { BasicDataTypeDef, CreateTableStatement, DataTypeDef, TableConstraint, TableConstraintUnique } from 'pgsql-ast-parser'
+import type { ColumnDefinition, CreateTable } from './type'
 import { astVisitor, parseFirst } from 'pgsql-ast-parser'
-
-export interface CreateTable {
-  name: string
-  definitions: ColumnDefinition[]
-  primaryKeys: string[]
-  uniqueKeys?: string[]
-}
-
-export interface ColumnDefinition {
-  name: string
-  datatype: string
-  nullable: boolean
-  length?: number
-  precision?: number
-  scale?: number
-}
+import { getConfig } from './config'
 
 /**
  * Extracts the table definition from a DDL statement
@@ -23,7 +9,9 @@ export interface ColumnDefinition {
  * @param omitCols Columns to omit from the table definition, useful for excluding columns that are in BaseEntity.
  * @returns
  */
-export function extractTable(ddl: string, omitCols: string[] = []): CreateTable {
+export async function extractTable(ddl: string): Promise<CreateTable> {
+  const config = await getConfig()
+  const omitCols = config.omitColumns
   const ast = tryParseFirst(ddl)
 
   const table: CreateTable = {

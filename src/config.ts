@@ -1,14 +1,23 @@
-import type { Options as PrettierOptions } from 'prettier'
+import type { Config } from './type'
+import fs from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
+import ini from 'ini'
+
+const customRcPath = process.env.EGG_CONFIG_FILE
+
+const home = process.platform === 'win32'
+  ? process.env.USERPROFILE
+  : process.env.HOME
+
+const defaultRcPath = path.join(home || '~/', '.eggrc')
+
+const rcPath = customRcPath || defaultRcPath
 
 const javaPlugin = import.meta.resolve('prettier-plugin-java')
 
-interface Config {
-  prettierOptions: PrettierOptions
-  dataTypeMap: Record<string, string>
-  defaultValueMap: Record<string, string>
-}
-
 const defaultConfig: Config = {
+  omitColumns: [],
   prettierOptions: {
     tabWidth: 4,
     printWidth: 200,
@@ -48,6 +57,14 @@ let config: Config | undefined
 
 export async function getConfig(): Promise<Config> {
   if (!config) {
+    config = Object.assign(
+      {},
+      defaultConfig,
+      fs.existsSync(rcPath)
+        ? ini.parse(fs.readFileSync(rcPath, 'utf-8'))
+        : null,
+    )
+
     config = Object.assign({}, defaultConfig)
   }
 
