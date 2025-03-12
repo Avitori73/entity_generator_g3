@@ -1,7 +1,8 @@
+import type { CreateTable } from './type'
 import fs from 'node:fs'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
-import { cancel, intro, isCancel, log, outro, tasks, text } from '@clack/prompts'
+import { cancel, intro, isCancel, log, outro, spinner, tasks, text } from '@clack/prompts'
 import c from 'ansis'
 import { rimrafSync } from 'rimraf'
 import { generateJavaCode } from './codeGen'
@@ -13,6 +14,43 @@ const paths = {
   outputPath: './output',
   entityPath: join('./output', '/entity'),
   repositoryPath: join('./output', '/repository'),
+}
+
+export async function runCli(): Promise<void> {
+  console.log('\n')
+  intro(c.cyan(`Entity Generator For G3 Start`))
+
+  const filename = await promptFilename()
+
+  const statements = await detectCreateTableStatements(filename)
+
+  await createOutput()
+
+  const total = statements.length
+  let index = 0
+  let errorCount = 0
+  let successCount = 0
+  for (const table of statements) {
+    index++
+    const indexStr = `(${c.green(index)}/${c.blue(total)}) `
+    const ast = await parseTable(indexStr, table)
+    if (ast === null) {
+      log.warn(c.yellow(`Skipping to next table... \n`))
+      errorCount++
+      continue
+    }
+
+    const isSuccess = await processTable(indexStr, ast)
+    if (isSuccess) {
+      successCount++
+    }
+    else {
+      log.warn(c.yellow(`Skipping to next table... \n`))
+      errorCount++
+    }
+  }
+
+  outro(`${c.cyan('Entity generate finished:')} ${c.green(successCount)} tables generated, ${c.red(errorCount)} tables failed.`)
 }
 
 async function createOutput(): Promise<void> {
@@ -71,58 +109,47 @@ async function detectCreateTableStatements(filename: string): Promise<string[]> 
   return statements
 }
 
-export async function runCli(): Promise<void> {
-  console.log('\n')
-  intro(c.bgCyanBright(`Entity Generator For G3 Start`))
-
-  const filename = await promptFilename()
-
-  const statements = await detectCreateTableStatements(filename)
-
-  await createOutput()
-
-  const total = statements.length
-  let index = 0
-  let errorCount = 0
-  let successCount = 0
-  for (const table of statements) {
-    index++
-    const indexStr = `(${c.green(index)}/${c.blue(total)}) `
-    try {
-      const parseTable = await extractTable(table)
-      await tasks([
-        {
-          title: `${indexStr}Generating table ${c.yellow(parseTable.name)}...`,
-          task: async () => {
-            const [javaEntityClass, javaRepositoryInterface] = await Promise.all([
-              transformCreateTableToJavaEntityClass(parseTable),
-              transformCreateTableToJavaRepositoryInterface(parseTable),
-            ])
-            const [javaEntityFile, javaRepositoryFile] = await Promise.all([
-              generateJavaCode(javaEntityClass),
-              generateJavaCode(javaRepositoryInterface),
-            ])
-            const [formattedEntityFile, formattedRepositoryFile] = await Promise.all([
-              formatJavaCode(javaEntityFile.join('\n')),
-              formatJavaCode(javaRepositoryFile.join('\n')),
-            ])
-            const entityFile = resolve(paths.entityPath, `${javaEntityClass.name}.java`)
-            const repositoryFile = resolve(paths.repositoryPath, `${javaRepositoryInterface.name}.java`)
-            fs.writeFileSync(entityFile, formattedEntityFile)
-            fs.writeFileSync(repositoryFile, formattedRepositoryFile)
-            return `${indexStr}Generated table ${c.yellow(parseTable.name)}.`
-          },
-        },
-      ])
-      successCount++
-    }
-    catch (error) {
-      log.error(c.red(`${indexStr}Error generating table: \n\n ${table} \n\n ${error instanceof Error ? error.message : error}`))
-      log.warn(c.yellow(`Skipping to next table... \n`))
-      errorCount++
-      continue
-    }
+async function parseTable(indexStr: string, table: string): Promise<CreateTable | null> {
+  const s = spinner()
+  try {
+    s.start(`${indexStr}Parsing table...`)
+    const astTable = await extractTable(table)
+    s.stop(`${indexStr}Parsed table!`)
+    return astTable
   }
+  catch (error) {
+    s.stop(c.red(`${indexStr}Error parse table:`))
+    log.error(c.red(`${table} \n\n ${error instanceof Error ? error.message : error}`))
+    return null
+  }
+}
 
-  outro(`${c.bgCyanBright('Entity generate finished:')} ${c.green(successCount)} tables generated, ${c.red(errorCount)} tables failed.`)
+async function processTable(indexStr: string, parseTable: CreateTable): Promise<boolean> {
+  const s = spinner()
+  try {
+    s.start(`${indexStr}Generating table ${c.yellow(parseTable.name)}...`)
+    const [javaEntityClass, javaRepositoryInterface] = await Promise.all([
+      transformCreateTableToJavaEntityClass(parseTable),
+      transformCreateTableToJavaRepositoryInterface(parseTable),
+    ])
+    const [javaEntityFile, javaRepositoryFile] = await Promise.all([
+      generateJavaCode(javaEntityClass),
+      generateJavaCode(javaRepositoryInterface),
+    ])
+    const [formattedEntityFile, formattedRepositoryFile] = await Promise.all([
+      formatJavaCode(javaEntityFile.join('\n')),
+      formatJavaCode(javaRepositoryFile.join('\n')),
+    ])
+    const entityFile = resolve(paths.entityPath, `${javaEntityClass.name}.java`)
+    const repositoryFile = resolve(paths.repositoryPath, `${javaRepositoryInterface.name}.java`)
+    fs.writeFileSync(entityFile, formattedEntityFile)
+    fs.writeFileSync(repositoryFile, formattedRepositoryFile)
+    s.stop(`${indexStr}Generated table ${c.yellow(parseTable.name)}.`)
+    return true
+  }
+  catch (e) {
+    s.stop(c.red(`${indexStr}Error generating table:`))
+    log.error(c.red(`${e instanceof Error ? e.message : e}`))
+    return false
+  }
 }

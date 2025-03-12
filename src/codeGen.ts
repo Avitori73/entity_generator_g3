@@ -1,6 +1,6 @@
 import type { JavaFile, JavaProperty } from './type'
 
-export function generateJavaCode(javaFile: JavaFile): string[] {
+export async function generateJavaCode(javaFile: JavaFile): Promise<string[]> {
   const lines = []
 
   lines.push(javaFile.package)
@@ -22,7 +22,6 @@ export function generateJavaCode(javaFile: JavaFile): string[] {
   })
 
   lines.push('}')
-
   return lines
 }
 
