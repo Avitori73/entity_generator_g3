@@ -17,7 +17,15 @@ const rcPath = customRcPath || defaultRcPath
 const javaPlugin = import.meta.resolve('prettier-plugin-java')
 
 const defaultConfig: Config = {
-  omitColumns: [],
+  omitColumns: [
+    'site_id_',
+    'update_author_',
+    'update_date_',
+    'create_author_',
+    'create_date_',
+    'update_program_',
+    'update_counter_',
+  ],
   prettierOptions: {
     tabWidth: 4,
     printWidth: 200,

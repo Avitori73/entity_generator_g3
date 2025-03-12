@@ -76,7 +76,7 @@ export async function transformCreateTableToJavaEntityClass(createTable: CreateT
 
 export async function transformColumnDefinitionToJavaProperty(column: ColumnDefinition, isPrimaryKey: boolean = false): Promise<JavaProperty> {
   const field: JavaField = {
-    name: changeCase.camelCase(column.name),
+    name: specialTransform(changeCase.camelCase(column.name)),
     type: await getJavaType(column.datatype),
     accessModifier: 'private',
     isStatic: false,
@@ -91,6 +91,13 @@ export async function transformColumnDefinitionToJavaProperty(column: ColumnDefi
   interfaces.push(getColumnInterface(column))
 
   return { field, interfaces }
+}
+
+function specialTransform(fieldName: string): string {
+  const specialKey: { [x: string]: string } = {
+    class: 'clazz',
+  }
+  return specialKey[fieldName] || fieldName
 }
 
 async function getJavaType(datatype: string): Promise<string> {
