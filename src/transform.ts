@@ -48,9 +48,8 @@ export async function transformCreateTableToJavaEntityClass(createTable: CreateT
     { name: 'Getter' },
   ]
   const imports = []
-  if (createTable.definitions.some(column => column.datatype === 'numeric')) {
-    imports.push('import java.math.BigDecimal;')
-  }
+  const dataTypeImports = await getDataTypeImports(createTable.definitions)
+  imports.push(...dataTypeImports)
   imports.push(
     'import com.a1stream.common.model.BaseEntity;',
     'import com.ymsl.solid.jpa.uuid.annotation.SnowflakeGenerator;',
@@ -130,4 +129,16 @@ function getColumnInterface(column: ColumnDefinition): JavaInterface {
     name: 'Column',
     attributes,
   }
+}
+
+async function getDataTypeImports(definitions: ColumnDefinition[]): Promise<string[]> {
+  const importSet = new Set<string>()
+  const config = await getConfig()
+  const dataTypeMap = config.dataImportMap
+  definitions.forEach((definition) => {
+    const javaType = dataTypeMap[definition.datatype]
+    if (javaType)
+      importSet.add(`import ${javaType};`)
+  })
+  return Array.from(importSet)
 }
