@@ -50,5 +50,6 @@ export interface Config {
   omitColumns: string[]
   prettierOptions: PrettierOptions
   dataTypeMap: Record<string, string>
+  dataImportMap: Record<string, string>
   defaultValueMap: Record<string, string>
 }
