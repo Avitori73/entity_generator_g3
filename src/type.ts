@@ -47,7 +47,17 @@ export interface ColumnDefinition {
 }
 
 export interface Config {
+  repositorySuperClazz: {
+    name: string
+    package: string
+  }
   omitColumns: string[]
+  entityPackage: string
+  simpleEntitySuperClazz: {
+    name: string
+    package: string
+  }
+  repositoryPackage: string
   prettierOptions: PrettierOptions
   dataTypeMap: Record<string, string>
   dataImportMap: Record<string, string>

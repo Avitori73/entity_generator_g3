@@ -1,0 +1,23 @@
+CREATE TABLE yimm_dpackweb_test.sp_product_facility_feature_test (
+	product_facility_feature_id_ int8 NOT NULL,
+	site_id_ varchar(40) DEFAULT ' '::character varying NOT NULL,
+	facility_id_ int8 NULL,
+	product_id_ int8 NULL,
+	product_feature_category_id_ varchar(40) NULL,
+	class_ varchar(20) NULL,
+	integer_value_ varchar(20) DEFAULT ' '::character varying NULL,
+	double_value_ varchar(20) NULL,
+	long_value_ varchar(20) NULL,
+	string_value_ varchar(256) NULL,
+	text_value_ varchar(256) NULL,
+	boolean_value_ varchar(1) NULL,
+	input_way_id_ varchar(40) NULL,
+	input_way_detail_ varchar(100) NULL,
+	update_author_ varchar(40) DEFAULT ' '::character varying NOT NULL,
+	update_date_ timestamptz(6) NOT NULL,
+	create_author_ varchar(40) DEFAULT ' '::character varying NOT NULL,
+	create_date_ timestamptz(6) NOT NULL,
+	update_program_ varchar(20) DEFAULT ' '::character varying NOT NULL,
+	update_counter_ int4 DEFAULT 0 NOT NULL,
+	CONSTRAINT sp_product_facility_feature_test_pkey PRIMARY KEY (product_facility_feature_id_)
+);

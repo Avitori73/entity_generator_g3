@@ -3,6 +3,21 @@ import type { ColumnDefinition, CreateTable } from './type'
 import { astVisitor, parseFirst } from 'pgsql-ast-parser'
 import { getConfig } from './config'
 
+export async function parseTable(ddl: string): Promise<CreateTableStatement> {
+  const adapterDdl = partitionTableAdapter(ddl)
+  return tryParseFirst(adapterDdl)
+}
+
+export function partitionTableAdapter(ddl: string): string {
+  // if ddl is partitioned table, the ddl will not be parsed correctly by 'pgsql-ast-parser'
+  // so we need to remove the partition part and return the table ddl
+  const partitionIndex = ddl.indexOf('PARTITION BY')
+  if (partitionIndex === -1) {
+    return ddl
+  }
+  return ddl.substring(0, partitionIndex)
+}
+
 /**
  * Extracts the table definition from a DDL statement
  * @param ddl Create table statement.

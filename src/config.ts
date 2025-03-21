@@ -1,6 +1,6 @@
 import type { Config } from './type'
 import fs from 'node:fs'
-import path from 'node:path'
+import path, { resolve } from 'node:path'
 import process from 'node:process'
 import ini from 'ini'
 
@@ -14,9 +14,19 @@ const defaultRcPath = path.join(home || '~/', '.eggrc')
 
 const rcPath = customRcPath || defaultRcPath
 
-const javaPlugin = import.meta.resolve('prettier-plugin-java')
+const javaPlugin = resolve('node_modules', 'prettier-plugin-java')
 
 const defaultConfig: Config = {
+  entityPackage: 'com.a1stream.domain.entity',
+  repositoryPackage: 'com.a1stream.domain.repository',
+  simpleEntitySuperClazz: {
+    name: 'BaseEntity',
+    package: 'com.a1stream.common.model.BaseEntity',
+  },
+  repositorySuperClazz: {
+    name: 'JpaExtensionRepository',
+    package: 'com.ymsl.solid.jpa.repository.JpaExtensionRepository',
+  },
   omitColumns: [
     'site_id_',
     'update_author_',
@@ -40,8 +50,8 @@ const defaultConfig: Config = {
     'smallint': 'Integer',
     'int2': 'Integer',
     'date': 'LocalDate',
-    'timestamp': 'Timestamp',
-    'timestamptz': 'Timestamp',
+    'timestamp': 'Instant',
+    'timestamptz': 'Instant',
     'time': 'LocalTime',
     'timetz': 'LocalTime',
     'numeric': 'BigDecimal',
@@ -54,12 +64,13 @@ const defaultConfig: Config = {
     'json': 'String',
     'boolean': 'Boolean',
     'bool': 'Boolean',
+    'bytea': 'byte[]',
   },
   dataImportMap: {
     numeric: 'java.math.BigDecimal',
     decimal: 'java.math.BigDecimal',
-    timestamptz: 'java.sql.Timestamp',
-    timestamp: 'java.sql.Timestamp',
+    timestamptz: 'java.time.Instant',
+    timestamp: 'java.time.Instant',
     time: 'java.time.LocalTime',
     timetz: 'java.time.LocalTime',
     date: 'java.time.LocalDate',

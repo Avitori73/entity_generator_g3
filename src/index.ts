@@ -1,6 +1,8 @@
 export * from './cli'
 export * from './config'
 export * from './format'
+export type * from './javaAst'
+export * from './javaAstBuilder'
 export * from './parse'
 export * from './transform'
 export type * from './type'
