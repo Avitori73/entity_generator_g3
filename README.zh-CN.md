@@ -3,7 +3,7 @@
 这是 G3 框架的实体生成器。
 
 <p align='center'>
-<a href="https://github.com/antfu-collective/vitesse/blob/main/README.md">English</a> | <b>简体中文</b>
+<a href="https://github.com/Avitori73/entity_generator_g3/blob/main/README.md">English</a> | <b>简体中文</b>
 </p>
 
 ## 安装步骤
