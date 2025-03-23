@@ -1,4 +1,4 @@
-import type { Annotation, Attribute, BaseNode, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaAST, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './javaAst'
+import type { Annotation, Attribute, BaseNode, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaAST, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './java-ast'
 
 export const modifierOrder = [
   'public',

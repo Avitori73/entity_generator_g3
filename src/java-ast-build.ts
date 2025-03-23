@@ -1,4 +1,4 @@
-import type { Annotation, Attribute, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './javaAst'
+import type { Annotation, Attribute, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './java-ast'
 
 export function createJavaDoc(value: Array<string>): JavaDoc {
   return {
@@ -79,6 +79,7 @@ export function createInterfaceDeclaration(name: string, body: BodyDeclaration):
     type: 'InterfaceDeclaration',
     id: createIdentifier(name),
     modifiers: [],
+    annotations: [],
     extends: [],
     body,
   }

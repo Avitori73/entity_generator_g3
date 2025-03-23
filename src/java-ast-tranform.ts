@@ -1,11 +1,11 @@
 import type { BasicDataTypeDef, CreateColumnDef, CreateTableStatement } from 'pgsql-ast-parser'
-import type { Annotation, BodyDeclaration, ClassDeclaration, FieldDeclaration, ImportDeclaration, JavaAST, JavaDoc, TypeDeclaration } from './javaAst'
+import type { Annotation, BodyDeclaration, ClassDeclaration, FieldDeclaration, ImportDeclaration, JavaAST, JavaDoc, TypeDeclaration } from './java-ast'
 import type { Config } from './type'
 import { camelCase, pascalCase } from 'change-case'
 import { uniqBy } from 'lodash-es'
 import { astVisitor } from 'pgsql-ast-parser'
 import { getConfig } from './config'
-import { createAnnotation, createBodyDeclaration, createClassDeclaration, createFieldDeclaration, createImportDeclaration, createModifier, createPackageDeclaration, createTypeDeclaration } from './javaAstBuilder'
+import { createAnnotation, createBodyDeclaration, createClassDeclaration, createFieldDeclaration, createImportDeclaration, createModifier, createPackageDeclaration, createTypeDeclaration } from './java-ast-build'
 
 export interface SpringDataJpaUnit {
   entity: JavaAST

@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import { describe, it } from 'vitest'
 import { formatJavaCode, generateJavaCode } from '../src'
-import { SimpleJpaTransformer } from '../src/javaAstTransform'
+import { SimpleJpaTransformer } from '../src/java-ast-tranform'
 import { parseTable } from '../src/parse'
 
 describe('should', () => {
