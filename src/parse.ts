@@ -62,8 +62,8 @@ function tryParseFirst(ddl: string): CreateTableStatement {
  * @param ast
  * @returns
  */
-function extractPrimaryKeys(ast: CreateTableStatement): string[] {
-  const primaryKeys: string[] = []
+function extractPrimaryKeys(ast: CreateTableStatement): Array<string> {
+  const primaryKeys: Array<string> = []
   astVisitor(() => ({
     createTable: (t) => {
       const pk = t.constraints?.find(constraint => constraint.type === 'primary key')
@@ -106,7 +106,7 @@ function extractColumn(ast: CreateTableStatement): ColumnDefinition[] {
  * @param omitColumns
  * @returns
  */
-function omitColumns(table: CreateTable, omitColumns: string[]): void {
+function omitColumns(table: CreateTable, omitColumns: Array<string>): void {
   if (omitColumns.length === 0)
     return
 

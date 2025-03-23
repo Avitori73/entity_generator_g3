@@ -1,7 +1,8 @@
 import { writeFileSync } from 'node:fs'
 import { describe, it } from 'vitest'
+import { formatJavaCode, generateJavaCode } from '../src'
+import { SimpleJpaTransformer } from '../src/javaAstTransform'
 import { parseTable } from '../src/parse'
-import { SimpleJpaTransformer } from './../src/astTransform'
 
 describe('should', () => {
   it('exported', async () => {
@@ -31,6 +32,9 @@ describe('should', () => {
     const CreateTableStatement = await parseTable(pgsqlDDL)
     const simpleJpaTransformer = new SimpleJpaTransformer()
     const javaAst = await simpleJpaTransformer.transform(CreateTableStatement)
-    writeFileSync('ast.json', JSON.stringify(javaAst, null, 2))
+    const entityCode = generateJavaCode(javaAst.entity)
+    const repositoryCode = generateJavaCode(javaAst.repository)
+    writeFileSync('./test/entity.java', await formatJavaCode(entityCode.join('\n')))
+    writeFileSync('./test/repository.java', await formatJavaCode(repositoryCode.join('\n')))
   })
 })

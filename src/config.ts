@@ -1,6 +1,6 @@
 import type { Config } from './type'
 import fs from 'node:fs'
-import path, { resolve } from 'node:path'
+import path from 'node:path'
 import process from 'node:process'
 import ini from 'ini'
 
@@ -14,7 +14,7 @@ const defaultRcPath = path.join(home || '~/', '.eggrc')
 
 const rcPath = customRcPath || defaultRcPath
 
-const javaPlugin = resolve('node_modules', 'prettier-plugin-java')
+const javaPluginPath = require.resolve('prettier-plugin-java')
 
 const defaultConfig: Config = {
   entityPackage: 'com.a1stream.domain.entity',
@@ -39,7 +39,7 @@ const defaultConfig: Config = {
   prettierOptions: {
     tabWidth: 4,
     printWidth: 200,
-    plugins: [javaPlugin],
+    plugins: [javaPluginPath],
   },
   dataTypeMap: {
     'bigint': 'Long',

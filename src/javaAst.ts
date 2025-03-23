@@ -1,4 +1,4 @@
-interface BaseNode {
+export interface BaseNode {
   type: string
 }
 
@@ -9,7 +9,7 @@ export interface JavaAST {
 
 export interface JavaDoc extends BaseNode {
   type: 'JavaDoc'
-  value: string[]
+  value: Array<string>
 }
 
 export interface LineComment extends BaseNode {
@@ -19,7 +19,7 @@ export interface LineComment extends BaseNode {
 
 export interface BlockComment extends BaseNode {
   type: 'BlockComment'
-  value: string[]
+  value: Array<string>
 }
 
 export interface Identifier extends BaseNode {
@@ -63,7 +63,8 @@ export interface InterfaceDeclaration extends BaseNode {
   type: 'InterfaceDeclaration'
   id: Identifier
   modifiers: Modifier[]
-  extends: Identifier[]
+  annotations: Annotation[]
+  extends: TypeDeclaration[]
   body: BodyDeclaration
 }
 

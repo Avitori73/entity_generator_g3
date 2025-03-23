@@ -1,6 +1,6 @@
 import type { JavaFile, JavaProperty } from './type'
 
-export async function generateJavaCode(javaFile: JavaFile): Promise<string[]> {
+export async function generateJavaCode(javaFile: JavaFile): Promise<Array<string>> {
   const lines = []
 
   lines.push(javaFile.package)
@@ -25,7 +25,7 @@ export async function generateJavaCode(javaFile: JavaFile): Promise<string[]> {
   return lines
 }
 
-export function generateJavaPropertyDeclaration(property: JavaProperty): string[] {
+export function generateJavaPropertyDeclaration(property: JavaProperty): Array<string> {
   const lines = []
 
   property.interfaces?.forEach((i) => {

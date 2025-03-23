@@ -8,7 +8,7 @@ export interface JavaFile {
   package: string
   extends?: string
   interfaces?: JavaInterface[]
-  imports?: string[]
+  imports?: Array<string>
 }
 
 export interface JavaField {
@@ -22,7 +22,7 @@ export interface JavaField {
 
 export interface JavaInterface {
   name: string
-  attributes?: string[]
+  attributes?: Array<string>
 }
 
 export interface JavaProperty {
@@ -33,8 +33,8 @@ export interface JavaProperty {
 export interface CreateTable {
   name: string
   definitions: ColumnDefinition[]
-  primaryKeys: string[]
-  uniqueKeys?: string[]
+  primaryKeys: Array<string>
+  uniqueKeys?: Array<string>
 }
 
 export interface ColumnDefinition {
@@ -51,7 +51,7 @@ export interface Config {
     name: string
     package: string
   }
-  omitColumns: string[]
+  omitColumns: Array<string>
   entityPackage: string
   simpleEntitySuperClazz: {
     name: string

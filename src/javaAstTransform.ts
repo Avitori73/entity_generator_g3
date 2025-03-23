@@ -2,6 +2,7 @@ import type { BasicDataTypeDef, CreateColumnDef, CreateTableStatement } from 'pg
 import type { Annotation, BodyDeclaration, ClassDeclaration, FieldDeclaration, ImportDeclaration, JavaAST, JavaDoc, TypeDeclaration } from './javaAst'
 import type { Config } from './type'
 import { camelCase, pascalCase } from 'change-case'
+import { uniqBy } from 'lodash-es'
 import { astVisitor } from 'pgsql-ast-parser'
 import { getConfig } from './config'
 import { createAnnotation, createBodyDeclaration, createClassDeclaration, createFieldDeclaration, createImportDeclaration, createModifier, createPackageDeclaration, createTypeDeclaration } from './javaAstBuilder'
@@ -57,7 +58,7 @@ export class SimpleJpaTransformer {
     function visitCreateColumn(column: CreateColumnDef): void {
       const isBasicDataTypeDef = column.dataType.kind !== 'array'
       const isOmitColumn = omitCols.includes(column.name.name)
-      if (!isBasicDataTypeDef && isOmitColumn) {
+      if (!isBasicDataTypeDef || isOmitColumn) {
         return
       }
 
@@ -75,11 +76,13 @@ export class SimpleJpaTransformer {
       createColumn: visitCreateColumn,
     })).statement(ast)
 
+    const uniqueImports = uniqBy(imports, 'id.name')
+
     const entityAST: JavaAST = {
       type: 'JavaAST',
       body: [
         packageDeclaration,
-        ...imports,
+        ...uniqueImports,
         versionJavaDoc,
         classDeclaration,
       ],
@@ -117,11 +120,13 @@ export class SimpleJpaTransformer {
     const generics = [createTypeDeclaration(entityClassName), idFieldDeclaration]
     classDeclaration.superClass = createTypeDeclaration(repositorySuperClazz.name, generics)
 
+    const uniqueImports = uniqBy(imports, 'id.name')
+
     const repositoryAST: JavaAST = {
       type: 'JavaAST',
       body: [
         packageDeclaration,
-        ...imports,
+        ...uniqueImports,
         versionJavaDoc,
         classDeclaration,
       ],
@@ -152,9 +157,7 @@ export function createVersionJavaDoc(): JavaDoc {
   return {
     type: 'JavaDoc',
     value: [
-      '/**',
-      ' * Auto-generated entity class.',
-      ' */',
+      'Auto-generated entity class.',
     ],
   }
 }

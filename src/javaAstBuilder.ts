@@ -1,6 +1,6 @@
 import type { Annotation, Attribute, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './javaAst'
 
-export function createJavaDoc(value: string[]): JavaDoc {
+export function createJavaDoc(value: Array<string>): JavaDoc {
   return {
     type: 'JavaDoc',
     value,
@@ -14,7 +14,7 @@ export function createLineComment(value: string): LineComment {
   }
 }
 
-export function createBlockComment(value: string[]): BlockComment {
+export function createBlockComment(value: Array<string>): BlockComment {
   return {
     type: 'BlockComment',
     value,

@@ -87,8 +87,8 @@ async function promptFilename(): Promise<string> {
   return filename
 }
 
-async function detectCreateTableStatements(filename: string): Promise<string[]> {
-  let statements: string[] = []
+async function detectCreateTableStatements(filename: string): Promise<Array<string>> {
+  let statements: Array<string> = []
 
   await tasks([
     {

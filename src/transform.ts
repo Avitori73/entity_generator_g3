@@ -131,7 +131,7 @@ function getColumnInterface(column: ColumnDefinition): JavaInterface {
   }
 }
 
-async function getDataTypeImports(definitions: ColumnDefinition[]): Promise<string[]> {
+async function getDataTypeImports(definitions: ColumnDefinition[]): Promise<Array<string>> {
   const importSet = new Set<string>()
   const config = await getConfig()
   const dataTypeMap = config.dataImportMap
