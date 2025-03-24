@@ -1,4 +1,4 @@
-import type { Annotation, Attribute, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './java-ast'
+import type { Annotation, Attribute, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, ConstructorDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './java-ast'
 
 export function createJavaDoc(value: Array<string>): JavaDoc {
   return {
@@ -35,21 +35,35 @@ export function createExpression(value: string): Expression {
   }
 }
 
-export function createAnnotation(name: string, attributes: Record<string, string | number | boolean | undefined> = {}): Annotation {
+export type AttributeType = string | number | boolean | TypeDeclaration
+
+export function createAnnotation(name: string, attributes: Record<string, AttributeType | AttributeType[] | undefined> = {}): Annotation {
   return {
     type: 'Annotation',
     id: createIdentifier(name),
     attributes: Object.entries(attributes)
-      .filter(([, value]) => value !== undefined)
-      .map(([key, value]) => createAttribute(key, value as string | number | boolean)),
+      .filter(([_, value]) => value !== undefined)
+      .map(([key, value]) => createAttribute(key, value as AttributeType | AttributeType[])),
   }
 }
 
-export function createAttribute(key: string, value: string | number | boolean): Attribute {
+export function createAttribute(key: string, value: AttributeType | AttributeType[]): Attribute {
+  function getVExpression(v: AttributeType): Expression {
+    if (typeof v === 'string') {
+      return createExpression(`"${v}"`)
+    }
+    if (typeof v === 'number' || typeof v === 'boolean') {
+      return createExpression(v.toString())
+    }
+    return createExpression(`${v.id.name}.class`)
+  }
+  const v = Array.isArray(value)
+    ? value.map(getVExpression)
+    : getVExpression(value)
   return {
     type: 'Attribute',
     key: createIdentifier(key),
-    value: createExpression(typeof value === 'string' ? `"${value}"` : `${value}`),
+    value: v,
   }
 }
 
@@ -99,6 +113,17 @@ export function createBodyDeclaration(body: Array<MethodDeclaration | FieldDecla
   return {
     type: 'BodyDeclaration',
     body,
+  }
+}
+
+export function createConstructorDeclaration(name: string): ConstructorDeclaration {
+  return {
+    type: 'ConstructorDeclaration',
+    id: createIdentifier(name),
+    modifiers: [],
+    annotations: [],
+    params: [],
+    body: createBlockStatement([]),
   }
 }
 

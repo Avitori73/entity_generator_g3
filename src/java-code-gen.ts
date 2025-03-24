@@ -1,4 +1,4 @@
-import type { Annotation, Attribute, BaseNode, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaAST, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './java-ast'
+import type { Annotation, Attribute, BaseNode, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, ConstructorDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaAST, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './java-ast'
 
 export const modifierOrder = [
   'public',
@@ -38,7 +38,13 @@ export function generateAnnotation(annotation: Annotation): Array<string> {
 }
 
 export function generateAttribute(attribute: Attribute): string {
-  return `${attribute.key.name} = ${attribute.value.value}`
+  const attributeKey = attribute.key.name === 'value' ? '' : `${attribute.key.name} = `
+  if (Array.isArray(attribute.value)) {
+    return `${attributeKey}{${attribute.value.map(generateExpression).join(', ')}}`
+  }
+  else {
+    return `${attributeKey}${generateExpression(attribute.value)}`
+  }
 }
 
 export function generateModifiers(modifiers: Array<Modifier>): string {
@@ -85,6 +91,19 @@ export function generateBodyDeclaration(bodyDeclaration: BodyDeclaration): Array
   return ['{', ...bodyDeclaration.body.map(generateNode).flat(), '}']
 }
 
+export function generateConstructorDeclaration(constructorDeclaration: ConstructorDeclaration): Array<string> {
+  const annotations = constructorDeclaration.annotations.map(generateAnnotation).flat()
+  const modifiers = generateModifiers(constructorDeclaration.modifiers)
+  const constructorName = constructorDeclaration.id.name
+  const params = constructorDeclaration.params.map(generateParameter).join(', ')
+  const body = generateBlockStatement(constructorDeclaration.body)
+  return [
+    ...annotations,
+    `${modifiers} ${constructorName}(${params})`,
+    ...body,
+  ]
+}
+
 export function generateMethodDeclaration(methodDeclaration: MethodDeclaration): Array<string> {
   const annotations = methodDeclaration.annotations.map(generateAnnotation).flat()
   const modifiers = generateModifiers(methodDeclaration.modifiers)
@@ -120,10 +139,18 @@ export function generateFieldDeclaration(fieldDeclaration: FieldDeclaration): Ar
   const modifiers = generateModifiers(fieldDeclaration.modifiers)
   const typeDeclaration = generateTypeDeclaration(fieldDeclaration.typeDeclaration)
   const fieldName = fieldDeclaration.id.name
-  return [
-    ...annotations,
-    `${modifiers} ${typeDeclaration} ${fieldName};`,
-  ]
+  if (fieldDeclaration.value) {
+    return [
+      ...annotations,
+      `${modifiers} ${typeDeclaration} ${fieldName} = ${generateExpression(fieldDeclaration.value)};`,
+    ]
+  }
+  else {
+    return [
+      ...annotations,
+      `${modifiers} ${typeDeclaration} ${fieldName};`,
+    ]
+  }
 }
 
 export function generateTypeDeclaration(typeDeclaration: TypeDeclaration): string {
@@ -160,6 +187,8 @@ export function generateNode(node: BaseNode): Array<string> | string {
       return generateClassDeclaration(node as ClassDeclaration)
     case 'BodyDeclaration':
       return generateBodyDeclaration(node as BodyDeclaration)
+    case 'ConstructorDeclaration':
+      return generateConstructorDeclaration(node as ConstructorDeclaration)
     case 'MethodDeclaration':
       return generateMethodDeclaration(node as MethodDeclaration)
     case 'FieldDeclaration':

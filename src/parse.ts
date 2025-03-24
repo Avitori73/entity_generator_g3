@@ -3,19 +3,24 @@ import type { ColumnDefinition, CreateTable } from './type'
 import { astVisitor, parseFirst } from 'pgsql-ast-parser'
 import { getConfig } from './config'
 
-export async function parseTable(ddl: string): Promise<CreateTableStatement> {
-  const adapterDdl = partitionTableAdapter(ddl)
-  return tryParseFirst(adapterDdl)
+export interface ParseResult {
+  ast: CreateTableStatement
+  isPartition: boolean
 }
 
-export function partitionTableAdapter(ddl: string): string {
+export async function parseTable(ddl: string): Promise<ParseResult> {
+  const adapterDdl = partitionTableAdapter(ddl)
+  return { ast: tryParseFirst(adapterDdl.ddl), isPartition: adapterDdl.isPartition }
+}
+
+export function partitionTableAdapter(ddl: string): { ddl: string, isPartition: boolean } {
   // if ddl is partitioned table, the ddl will not be parsed correctly by 'pgsql-ast-parser'
   // so we need to remove the partition part and return the table ddl
   const partitionIndex = ddl.indexOf('PARTITION BY')
   if (partitionIndex === -1) {
-    return ddl
+    return { ddl, isPartition: false }
   }
-  return ddl.substring(0, partitionIndex)
+  return { ddl: ddl.substring(0, partitionIndex), isPartition: true }
 }
 
 /**

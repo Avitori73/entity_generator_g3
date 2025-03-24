@@ -30,8 +30,8 @@ describe('should', () => {
       PARTITION BY LIST (dealer_partition_);
     `
     const CreateTableStatement = await parseTable(pgsqlDDL)
-    const simpleJpaTransformer = new SimpleJpaTransformer()
-    const javaAst = await simpleJpaTransformer.transform(CreateTableStatement)
+    const simpleJpaTransformer = new SimpleJpaTransformer(CreateTableStatement.ast)
+    const javaAst = await simpleJpaTransformer.transform()
     const entityCode = generateJavaCode(javaAst.entity)
     const repositoryCode = generateJavaCode(javaAst.repository)
     writeFileSync('./test/entity.java', await formatJavaCode(entityCode.join('\n')))

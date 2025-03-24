@@ -41,7 +41,7 @@ export interface Annotation extends BaseNode {
 export interface Attribute extends BaseNode {
   type: 'Attribute'
   key: Identifier
-  value: Expression
+  value: Expression | Expression[]
 }
 
 export interface Modifier extends BaseNode {
@@ -80,7 +80,16 @@ export interface ClassDeclaration extends BaseNode {
 
 export interface BodyDeclaration extends BaseNode {
   type: 'BodyDeclaration'
-  body: Array<MethodDeclaration | FieldDeclaration>
+  body: Array<ConstructorDeclaration | MethodDeclaration | FieldDeclaration>
+}
+
+export interface ConstructorDeclaration extends BaseNode {
+  type: 'ConstructorDeclaration'
+  id: Identifier
+  modifiers: Modifier[]
+  annotations: Annotation[]
+  params: Parameter[]
+  body: BlockStatement
 }
 
 export interface MethodDeclaration extends BaseNode {

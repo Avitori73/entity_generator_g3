@@ -1,3 +1,3 @@
-import { runCli } from '../cli'
+import { runJavaCli } from '../java-cli'
 
-runCli()
+runJavaCli()

@@ -3,6 +3,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import ini from 'ini'
+import * as javaPluginPath from 'prettier-plugin-java'
+
+const javaPlugin = javaPluginPath.default
 
 const customRcPath = process.env.EGG_CONFIG_FILE
 
@@ -13,8 +16,6 @@ const home = process.platform === 'win32'
 const defaultRcPath = path.join(home || '~/', '.eggrc')
 
 const rcPath = customRcPath || defaultRcPath
-
-const javaPluginPath = require.resolve('prettier-plugin-java')
 
 const defaultConfig: Config = {
   entityPackage: 'com.a1stream.domain.entity',
@@ -27,6 +28,18 @@ const defaultConfig: Config = {
     name: 'JpaExtensionRepository',
     package: 'com.ymsl.solid.jpa.repository.JpaExtensionRepository',
   },
+  partitionEntityPackage: 'com.a1stream.domain.entity.partition',
+  partitionRepositoryPackage: 'com.a1stream.domain.repository.partition',
+  partitionEntitySuperClazz: {
+    name: 'BasePartitionEntity',
+    package: 'com.a1stream.common.model.BasePartitionEntity',
+  },
+  entityKeyPackage: 'com.a1stream.domain.entity.partition',
+  partitionKeySuperClazz: {
+    name: 'PartitionKey',
+    package: 'com.a1stream.common.model.PartitionKey',
+  },
+  partitionKey: 'dealer_partition_',
   omitColumns: [
     'site_id_',
     'update_author_',
@@ -39,7 +52,7 @@ const defaultConfig: Config = {
   prettierOptions: {
     tabWidth: 4,
     printWidth: 200,
-    plugins: [javaPluginPath],
+    plugins: [javaPlugin],
   },
   dataTypeMap: {
     'bigint': 'Long',
