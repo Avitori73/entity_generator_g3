@@ -1,8 +1,8 @@
 import { writeFileSync } from 'node:fs'
 import { describe, it } from 'vitest'
 import { formatJavaCode, generateJavaCode } from '../src'
-import { SimpleJpaTransformer } from '../src/java-ast-tranform'
-import { parseTable } from '../src/parse'
+import { SimpleJpaTransformer } from '../src/ast-transform'
+import { parseTable } from '../src/pgsql-parse'
 
 describe('should', () => {
   it('exported', async () => {

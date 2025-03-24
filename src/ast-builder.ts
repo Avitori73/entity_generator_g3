@@ -1,4 +1,4 @@
-import type { Annotation, Attribute, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, ConstructorDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './java-ast'
+import type { Annotation, Attribute, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, ConstructorDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './type'
 
 export function createJavaDoc(value: Array<string>): JavaDoc {
   return {

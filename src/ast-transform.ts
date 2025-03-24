@@ -1,12 +1,11 @@
 import type { BasicDataTypeDef, CreateColumnDef, CreateTableStatement } from 'pgsql-ast-parser'
-import type { Annotation, BodyDeclaration, ClassDeclaration, FieldDeclaration, ImportDeclaration, InterfaceDeclaration, JavaAST, JavaDoc, TypeDeclaration } from './java-ast'
-import type { Config } from './type'
+import type { Annotation, BodyDeclaration, ClassDeclaration, Config, FieldDeclaration, ImportDeclaration, InterfaceDeclaration, JavaAST, JavaDoc, TypeDeclaration } from './type'
 import { camelCase, pascalCase } from 'change-case'
 import { uniqBy } from 'lodash-es'
 import { astVisitor } from 'pgsql-ast-parser'
 import { version } from '../package.json'
+import { createAnnotation, createBlockStatement, createBodyDeclaration, createClassDeclaration, createConstructorDeclaration, createExpression, createFieldDeclaration, createImportDeclaration, createInterfaceDeclaration, createMethodDeclaration, createModifier, createPackageDeclaration, createParameter, createTypeDeclaration } from './ast-builder'
 import { getConfig } from './config'
-import { createAnnotation, createBlockStatement, createBodyDeclaration, createClassDeclaration, createConstructorDeclaration, createExpression, createFieldDeclaration, createImportDeclaration, createInterfaceDeclaration, createMethodDeclaration, createModifier, createPackageDeclaration, createParameter, createTypeDeclaration } from './java-ast-build'
 
 export interface SimpleJpaUnit {
   entity: JavaAST
