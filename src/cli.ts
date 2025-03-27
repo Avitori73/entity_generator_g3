@@ -18,6 +18,8 @@ const paths = {
   timestampOutputPath: resolve('./output', new Date().toISOString().replace(/:/g, '-')),
 }
 
+const errorStack: Array<string> = []
+
 export async function runJavaCli(): Promise<void> {
   console.log('\n')
   intro(c.cyan(`Entity Generator For G3 Start`))
@@ -52,6 +54,11 @@ export async function runJavaCli(): Promise<void> {
   }
 
   outro(`${c.cyan('Entity generate finished:')} ${c.green(successCount)} tables generated, ${c.red(errorCount)} tables failed.`)
+
+  if (errorStack.length > 0) {
+    console.log(c.red(`Error stack:`))
+    errorStack.forEach(e => console.log(c.red(`- ${e}`)))
+  }
 }
 
 async function createOutput(): Promise<void> {
@@ -120,6 +127,7 @@ async function parseTables(indexStr: string, table: string): Promise<ParseResult
   catch (error) {
     s.stop(c.red(`${indexStr}Error parse table:`))
     log.error(c.red(`${table} \n\n ${error instanceof Error ? error.message : error}`))
+    errorStack.push(`${table} - ${error instanceof Error ? error.message : error}`)
     return null
   }
 }
@@ -136,6 +144,7 @@ async function processTable(indexStr: string, parseResult: ParseResult): Promise
   catch (e) {
     s.stop(c.red(`${indexStr}Error generating table:`))
     log.error(c.red(`${e instanceof Error ? e.message : e}`))
+    errorStack.push(`${e instanceof Error ? e.message : e}`)
     return false
   }
 }

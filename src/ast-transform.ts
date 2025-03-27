@@ -54,47 +54,51 @@ export class PartitionJpaTransformer {
     const versionJavaDoc = createVersionJavaDoc()
     const classDeclaration = createBaseEntityClass(entitySuperClazz.name)
 
+    imports.push(createImportDeclaration('jakarta.persistence.IdClass'))
     imports.push(createImportDeclaration(entitySuperClazz.package))
 
     const primaryKeys: Array<string> = []
-    function visitCreateTable(table: CreateTableStatement): void {
-      const tablename = table.name.name
-      const entityClassName = pascalCase(tablename)
-      classDeclaration.id.name = entityClassName
-      classDeclaration.annotations.push(createAnnotation('IdClass', { value: createTypeDeclaration(`${entityClassName}Key`) }))
-      classDeclaration.annotations.push(createAnnotation('Table', { name: tablename }))
 
-      // Extract primary keys, but exclude partition key
-      table.constraints?.forEach((constraint) => {
-        if (constraint.type === 'primary key') {
-          primaryKeys.push(...constraint.columns.filter(col => col.name !== partitionKey).map(col => col.name))
-        }
-      })
-    }
-
+    // visit table
     astVisitor(() => ({
-      createTable: visitCreateTable,
+      createTable: (table: CreateTableStatement) => {
+        const tablename = table.name.name
+        const entityClassName = pascalCase(tablename)
+        classDeclaration.id.name = entityClassName
+        classDeclaration.annotations.push(createAnnotation('IdClass', { value: createTypeDeclaration(`${entityClassName}Key`) }))
+        classDeclaration.annotations.push(createAnnotation('Table', { name: tablename }))
+
+        // Extract primary keys, but exclude partition key
+        table.constraints?.forEach((constraint) => {
+          if (constraint.type === 'primary key') {
+            primaryKeys.push(...constraint.columns.filter(col => col.name !== partitionKey).map(col => col.name))
+          }
+        })
+      },
     })).statement(ast)
 
-    function visitCreateColumn(column: CreateColumnDef): void {
-      const isBasicDataTypeDef = column.dataType.kind !== 'array'
-      const isOmitColumn = omitCols.includes(column.name.name)
-      if (!isBasicDataTypeDef || isOmitColumn) {
-        return
-      }
-
-      const columnName = column.name.name
-      const dataType = column.dataType as BasicDataTypeDef
-      const type = dataType.name
-      const typeDeclaration = createTypeDeclaration(dataTypeMap[type] ?? 'Object')
-      const isPrimaryKey = primaryKeys.includes(columnName)
-
-      dataImportMap[type] && imports.push(createImportDeclaration(dataImportMap[type]))
-      classDeclaration.body.body.push(createEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
-    }
-
+    // visit columns
     astVisitor(() => ({
-      createColumn: visitCreateColumn,
+      createColumn: (column: CreateColumnDef) => {
+        const isBasicDataTypeDef = column.dataType.kind !== 'array'
+        const isOmitColumn = omitCols.includes(column.name.name)
+        if (!isBasicDataTypeDef || isOmitColumn) {
+          return
+        }
+
+        const columnName = column.name.name
+        const dataType = column.dataType as BasicDataTypeDef
+        const type = dataType.name
+        const typeDeclaration = createTypeDeclaration(dataTypeMap[type] ?? 'Object')
+        const isPrimaryKey = primaryKeys.includes(columnName)
+
+        if (isPrimaryKey && typeDeclaration.id.name !== 'Long') {
+          throw new Error(`Primary key ${columnName} must be of type Long in table ${this.tableName}.`)
+        }
+
+        dataImportMap[type] && imports.push(createImportDeclaration(dataImportMap[type]))
+        classDeclaration.body.body.push(createEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
+      },
     })).statement(ast)
 
     const uniqueImports = uniqBy(imports, 'id.name')
@@ -228,42 +232,45 @@ export class SimpleJpaTransformer {
     imports.push(createImportDeclaration(entitySuperClazz.package))
 
     const primaryKeys: Array<string> = []
-    function visitCreateTable(table: CreateTableStatement): void {
-      const tablename = table.name.name
-      classDeclaration.id.name = pascalCase(tablename)
-      classDeclaration.annotations.push(createAnnotation('Table', { name: tablename }))
 
-      // Extract primary keys
-      table.constraints?.forEach((constraint) => {
-        if (constraint.type === 'primary key') {
-          primaryKeys.push(...constraint.columns.map(col => col.name))
-        }
-      })
-    }
-
+    // visit table
     astVisitor(() => ({
-      createTable: visitCreateTable,
+      createTable: (table: CreateTableStatement) => {
+        const tablename = table.name.name
+        classDeclaration.id.name = pascalCase(tablename)
+        classDeclaration.annotations.push(createAnnotation('Table', { name: tablename }))
+
+        // Extract primary keys
+        table.constraints?.forEach((constraint) => {
+          if (constraint.type === 'primary key') {
+            primaryKeys.push(...constraint.columns.map(col => col.name))
+          }
+        })
+      },
     })).statement(ast)
 
-    function visitCreateColumn(column: CreateColumnDef): void {
-      const isBasicDataTypeDef = column.dataType.kind !== 'array'
-      const isOmitColumn = omitCols.includes(column.name.name)
-      if (!isBasicDataTypeDef || isOmitColumn) {
-        return
-      }
-
-      const columnName = column.name.name
-      const dataType = column.dataType as BasicDataTypeDef
-      const type = dataType.name
-      const typeDeclaration = createTypeDeclaration(dataTypeMap[type] ?? 'Object')
-      const isPrimaryKey = primaryKeys.includes(columnName)
-
-      dataImportMap[type] && imports.push(createImportDeclaration(dataImportMap[type]))
-      classDeclaration.body.body.push(createEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
-    }
-
+    // visit columns
     astVisitor(() => ({
-      createColumn: visitCreateColumn,
+      createColumn: (column: CreateColumnDef) => {
+        const isBasicDataTypeDef = column.dataType.kind !== 'array'
+        const isOmitColumn = omitCols.includes(column.name.name)
+        if (!isBasicDataTypeDef || isOmitColumn) {
+          return
+        }
+
+        const columnName = column.name.name
+        const dataType = column.dataType as BasicDataTypeDef
+        const type = dataType.name
+        const typeDeclaration = createTypeDeclaration(dataTypeMap[type] ?? 'Object')
+        const isPrimaryKey = primaryKeys.includes(columnName)
+
+        if (isPrimaryKey && typeDeclaration.id.name !== 'Long') {
+          throw new Error(`Primary key ${columnName} must be of type Long in table ${this.tableName}.`)
+        }
+
+        dataImportMap[type] && imports.push(createImportDeclaration(dataImportMap[type]))
+        classDeclaration.body.body.push(createEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
+      },
     })).statement(ast)
 
     const uniqueImports = uniqBy(imports, 'id.name')
@@ -442,13 +449,14 @@ export function createEntityKeyClassDeclaration(entityKeyClassName: string, idFi
   const entityKeyClass: ClassDeclaration = createClassDeclaration(entityKeyClassName, createEmptyBodyDeclaration())
   entityKeyClass.modifiers.push(createModifier('public'))
   entityKeyClass.annotations.push(createAnnotation('Data'))
-  entityKeyClass.annotations.push(createAnnotation('EqualsAndHashCode', { callSuper: false }))
+  entityKeyClass.annotations.push(createAnnotation('EqualsAndHashCode', { callSuper: true }))
   entityKeyClass.superClass = createTypeDeclaration(partitionkeySuperClazz.name)
   if (idFieldDeclaration) {
     const idName = idFieldDeclaration.id.name
     const idType = idFieldDeclaration.typeDeclaration
 
     const idField = createFieldDeclaration(idName, idType)
+    idField.modifiers.push(createModifier('private'))
 
     const noArgsConstructorDeclaration = createConstructorDeclaration(entityKeyClassName)
     noArgsConstructorDeclaration.modifiers.push(createModifier('public'))
