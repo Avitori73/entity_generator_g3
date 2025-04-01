@@ -1,5 +1,4 @@
 import type { CreateTableStatement } from 'pgsql-ast-parser'
-
 import type { ParseResult } from './pgsql-parse'
 import type { JavaAST } from './type'
 import fs from 'node:fs'
@@ -164,6 +163,7 @@ async function generateSimpleEntity(ast: CreateTableStatement): Promise<void> {
   const outputDir = paths.timestampOutputPath
   javaAstToFile(javaAst.entity, 'Entity', outputDir)
   javaAstToFile(javaAst.repository, 'Repository', outputDir)
+  javaAstToFile(javaAst.vo, 'VO', outputDir)
 }
 
 async function generatePartitionEntity(ast: CreateTableStatement): Promise<void> {
@@ -173,6 +173,7 @@ async function generatePartitionEntity(ast: CreateTableStatement): Promise<void>
   javaAstToFile(partitionJavaAst.entity, 'Entity', outputDir)
   javaAstToFile(partitionJavaAst.entityKey, 'EntityKey', outputDir)
   javaAstToFile(partitionJavaAst.repository, 'Repository', outputDir)
+  javaAstToFile(partitionJavaAst.vo, 'VO', outputDir)
 }
 
 function packageToPath(packageName: string): string {

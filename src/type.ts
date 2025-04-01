@@ -1,6 +1,7 @@
 import type { Options as PrettierOptions } from 'prettier'
 
 export interface Config {
+  // entity
   entityPackage: string
   repositoryPackage: string
   simpleEntitySuperClazz: {
@@ -8,6 +9,17 @@ export interface Config {
     package: string
   }
   repositorySuperClazz: {
+    name: string
+    package: string
+  }
+  voPackage: string
+  voSuperClazz: {
+    name: string
+    package: string
+  }
+  // partition entity
+  partitionVoPackage: string
+  partitionVoSuperClazz: {
     name: string
     package: string
   }
@@ -28,6 +40,8 @@ export interface Config {
   dataTypeMap: Record<string, string>
   dataImportMap: Record<string, string>
   defaultValueMap: Record<string, string>
+  defaultVOImportMap: Record<string, string>
+  defaultVOValueMap: Record<string, string>
 }
 
 export interface BaseNode {

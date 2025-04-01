@@ -152,6 +152,7 @@ export function createBlockStatement(body: Array<Expression | BlockStatement>): 
     body,
   }
 }
+
 export function createFieldDeclaration(name: string, typeDeclaration: TypeDeclaration): FieldDeclaration {
   return {
     type: 'FieldDeclaration',

@@ -10,12 +10,14 @@ import { getConfig } from './config'
 export interface SimpleJpaUnit {
   entity: JavaAST
   repository: JavaAST
+  vo: JavaAST
 }
 
 export interface PartitionJpaUnit {
   entity: JavaAST
   entityKey: JavaAST
   repository: JavaAST
+  vo: JavaAST
 }
 
 export class PartitionJpaTransformer {
@@ -33,10 +35,12 @@ export class PartitionJpaTransformer {
     const entityAST = this.transformToEntityAST(this.ast)
     const entityKeyAST = this.transformToEntityKeyAST(entityAST)
     const repositoryAST = this.transformToRepositoryAST(entityAST, entityKeyAST)
+    const voAST = this.transformToVOAST(entityAST)
     return {
       entity: entityAST,
       entityKey: entityKeyAST,
       repository: repositoryAST,
+      vo: voAST,
     }
   }
 
@@ -195,6 +199,19 @@ export class PartitionJpaTransformer {
 
     return repositoryAST
   }
+
+  private transformToVOAST(entityAST: JavaAST): JavaAST {
+    const defaultVOImportMap = this.config.defaultVOImportMap
+    const defaultVOValueMap = this.config.defaultVOValueMap
+    const voPackage = this.config.partitionVoPackage
+    const voSuperClazz = this.config.partitionVoSuperClazz
+    return createVOClass(entityAST, {
+      voPackage,
+      voSuperClazz,
+      defaultVOImportMap,
+      defaultVOValueMap,
+    })
+  }
 }
 
 export class SimpleJpaTransformer {
@@ -211,9 +228,11 @@ export class SimpleJpaTransformer {
     this.config = await getConfig()
     const entityAST = this.transformToEntityAST(this.ast)
     const repositoryAST = this.transformToRepositoryAST(entityAST)
+    const voAST = this.transformToVOAST(entityAST)
     return {
       entity: entityAST,
       repository: repositoryAST,
+      vo: voAST,
     }
   }
 
@@ -335,6 +354,26 @@ export class SimpleJpaTransformer {
 
     return repositoryAST
   }
+
+  private transformToVOAST(entityAST: JavaAST): JavaAST {
+    const defaultVOImportMap = this.config.defaultVOImportMap
+    const defaultVOValueMap = this.config.defaultVOValueMap
+    const voPackage = this.config.voPackage
+    const voSuperClazz = this.config.voSuperClazz
+    return createVOClass(entityAST, {
+      voPackage,
+      voSuperClazz,
+      defaultVOImportMap,
+      defaultVOValueMap,
+    })
+  }
+}
+
+export function createBaseVOImports(): Array<ImportDeclaration> {
+  return [
+    createImportDeclaration('lombok.Getter'),
+    createImportDeclaration('lombok.Setter'),
+  ]
 }
 
 export function createBaseRepositoryImports(): Array<ImportDeclaration> {
@@ -386,6 +425,16 @@ export function createBaseEntityClass(superClazz: string): ClassDeclaration {
   const tempEntityClass: ClassDeclaration = createClassDeclaration('TempBaseEntity', createEmptyBodyDeclaration())
   tempEntityClass.modifiers.push(createModifier('public'))
   tempEntityClass.annotations.push(createAnnotation('Entity'))
+  tempEntityClass.annotations.push(createAnnotation('Getter'))
+  tempEntityClass.annotations.push(createAnnotation('Setter'))
+  tempEntityClass.superClass = createTypeDeclaration(superClazz)
+  tempEntityClass.body.body.push(createSerialVersionUID())
+  return tempEntityClass
+}
+
+export function createBaseVOClass(superClazz: string): ClassDeclaration {
+  const tempEntityClass: ClassDeclaration = createClassDeclaration('TempBaseVO', createEmptyBodyDeclaration())
+  tempEntityClass.modifiers.push(createModifier('public'))
   tempEntityClass.annotations.push(createAnnotation('Getter'))
   tempEntityClass.annotations.push(createAnnotation('Setter'))
   tempEntityClass.superClass = createTypeDeclaration(superClazz)
@@ -485,4 +534,63 @@ export function createEntityKeyClassDeclaration(entityKeyClassName: string, idFi
     )
   }
   return entityKeyClass
+}
+
+interface VOEnv {
+  voPackage: string
+  voSuperClazz: { name: string, package: string }
+  defaultVOImportMap: Record<string, string>
+  defaultVOValueMap: Record<string, string>
+}
+
+export function createVOClass(entityAST: JavaAST, env: VOEnv): JavaAST {
+  const { voPackage, voSuperClazz, defaultVOImportMap, defaultVOValueMap } = env
+  const packageDeclaration = createPackageDeclaration(voPackage)
+  const imports = createBaseVOImports()
+  const versionJavaDoc = createVersionJavaDoc()
+  const classDeclaration = createBaseVOClass(voSuperClazz.name)
+
+  imports.push(createImportDeclaration(voSuperClazz.package))
+
+  const entityClassDeclaration = entityAST.body.find(node => node.type === 'ClassDeclaration')
+  const entityClassName = entityClassDeclaration?.id.name || 'TempBaseEntity'
+  classDeclaration.id.name = `${entityClassName}VO`
+
+  const entityFieldDeclarations = entityClassDeclaration?.body.body.filter(node => node.type === 'FieldDeclaration') || []
+  for (const field of entityFieldDeclarations) {
+    const fieldName = field.id.name
+    if (fieldName === 'serialVersionUID')
+      continue
+
+    const fieldType = field.typeDeclaration
+    // import type
+    const fieldTypeName = fieldType.id.name
+    const fieldTypePackage = defaultVOImportMap[fieldTypeName]
+    if (fieldTypePackage) {
+      imports.push(createImportDeclaration(fieldTypePackage))
+    }
+    // create field declaration
+    const voFieldDeclaration = createFieldDeclaration(fieldName, fieldType)
+    voFieldDeclaration.modifiers.push(createModifier('private'))
+    // set default value
+    const fieldValue = defaultVOValueMap[fieldTypeName]
+    if (fieldValue) {
+      voFieldDeclaration.value = createExpression(fieldValue)
+    }
+
+    classDeclaration.body.body.push(voFieldDeclaration)
+  }
+
+  const uniqueImports = uniqBy(imports, 'id.name')
+
+  const voAST: JavaAST = {
+    type: 'JavaAST',
+    body: [
+      packageDeclaration,
+      ...uniqueImports,
+      versionJavaDoc,
+      classDeclaration,
+    ],
+  }
+  return voAST
 }

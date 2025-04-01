@@ -28,6 +28,16 @@ const defaultConfig: Config = {
     name: 'JpaExtensionRepository',
     package: 'com.ymsl.solid.jpa.repository.JpaExtensionRepository',
   },
+  voPackage: 'com.a1stream.domain.vo',
+  voSuperClazz: {
+    name: 'BaseVO',
+    package: 'com.a1stream.common.model.BaseVO',
+  },
+  partitionVoPackage: 'com.a1stream.domain.vo.partition',
+  partitionVoSuperClazz: {
+    name: 'BasePartitionVO',
+    package: 'com.a1stream.common.model.BasePartitionVO',
+  },
   partitionEntityPackage: 'com.a1stream.domain.entity.partition',
   partitionRepositoryPackage: 'com.a1stream.domain.repository.partition',
   partitionEntitySuperClazz: {
@@ -91,6 +101,14 @@ const defaultConfig: Config = {
   defaultValueMap: {
     numeric: 'BigDecimal.ZERO',
     decimal: 'BigDecimal.ZERO',
+  },
+  defaultVOImportMap: {
+    BigDecimal: 'java.math.BigDecimal',
+    Integer: 'com.a1stream.common.constants.CommonConstants',
+  },
+  defaultVOValueMap: {
+    BigDecimal: 'BigDecimal.ZERO',
+    Integer: 'CommonConstants.INTEGER_ZERO',
   },
 }
 
