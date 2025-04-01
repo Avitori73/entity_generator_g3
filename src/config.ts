@@ -105,6 +105,7 @@ const defaultConfig: Config = {
   defaultVOImportMap: {
     BigDecimal: 'java.math.BigDecimal',
     Integer: 'com.a1stream.common.constants.CommonConstants',
+    Instant: 'java.time.Instant',
   },
   defaultVOValueMap: {
     BigDecimal: 'BigDecimal.ZERO',
