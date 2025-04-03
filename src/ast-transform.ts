@@ -96,10 +96,6 @@ export class PartitionJpaTransformer {
         const typeDeclaration = createTypeDeclaration(dataTypeMap[type] ?? 'Object')
         const isPrimaryKey = primaryKeys.includes(columnName)
 
-        if (isPrimaryKey && typeDeclaration.id.name !== 'Long') {
-          throw new Error(`Primary key ${columnName} must be of type Long in table ${this.tableName}.`)
-        }
-
         dataImportMap[type] && imports.push(createImportDeclaration(dataImportMap[type]))
         classDeclaration.body.body.push(createEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
       },
@@ -283,10 +279,6 @@ export class SimpleJpaTransformer {
         const typeDeclaration = createTypeDeclaration(dataTypeMap[type] ?? 'Object')
         const isPrimaryKey = primaryKeys.includes(columnName)
 
-        if (isPrimaryKey && typeDeclaration.id.name !== 'Long') {
-          throw new Error(`Primary key ${columnName} must be of type Long in table ${this.tableName}.`)
-        }
-
         dataImportMap[type] && imports.push(createImportDeclaration(dataImportMap[type]))
         classDeclaration.body.body.push(createEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
       },
@@ -456,7 +448,8 @@ export function createEntityFieldDeclaration(column: CreateColumnDef, typeDeclar
   fieldDeclaration.modifiers.push(createModifier('private'))
   if (isPrimaryKey) {
     fieldDeclaration.annotations.push(createAnnotation('Id'))
-    fieldDeclaration.annotations.push(createAnnotation('SnowflakeGenerator'))
+    if (typeDeclaration.id.name === 'Long')
+      fieldDeclaration.annotations.push(createAnnotation('SnowflakeGenerator'))
   }
   fieldDeclaration.annotations.push(createColumnAnnotation(column))
   return fieldDeclaration
