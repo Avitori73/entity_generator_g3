@@ -3,9 +3,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import ini from 'ini'
-import * as javaPluginPath from 'prettier-plugin-java'
-
-const javaPlugin = javaPluginPath.default
 
 const customRcPath = process.env.EGG_CONFIG_FILE
 
@@ -18,16 +15,39 @@ const defaultRcPath = path.join(home || '~/', '.eggrc')
 const rcPath = customRcPath || defaultRcPath
 
 const defaultConfig: Config = {
+  prettierOptions: {
+    tabWidth: 4,
+    printWidth: 120,
+  },
+
+  // entity
   entityPackage: 'com.a1stream.domain.entity',
-  repositoryPackage: 'com.a1stream.domain.repository',
   simpleEntitySuperClazz: {
     name: 'BaseEntity',
     package: 'com.a1stream.common.model.BaseEntity',
   },
+  partitionEntityPackage: 'com.a1stream.domain.entity.partition',
+  partitionEntitySuperClazz: {
+    name: 'BasePartitionEntity',
+    package: 'com.a1stream.common.model.BasePartitionEntity',
+  },
+
+  // entity key
+  entityKeyPackage: 'com.a1stream.domain.entity.partition',
+  partitionKeySuperClazz: {
+    name: 'PartitionKey',
+    package: 'com.a1stream.common.model.PartitionKey',
+  },
+
+  // repository
+  partitionRepositoryPackage: 'com.a1stream.domain.repository.partition',
+  repositoryPackage: 'com.a1stream.domain.repository',
   repositorySuperClazz: {
     name: 'JpaExtensionRepository',
     package: 'com.ymsl.solid.jpa.repository.JpaExtensionRepository',
   },
+
+  // vo
   voPackage: 'com.a1stream.domain.vo',
   voSuperClazz: {
     name: 'BaseVO',
@@ -38,17 +58,7 @@ const defaultConfig: Config = {
     name: 'BasePartitionVO',
     package: 'com.a1stream.common.model.BasePartitionVO',
   },
-  partitionEntityPackage: 'com.a1stream.domain.entity.partition',
-  partitionRepositoryPackage: 'com.a1stream.domain.repository.partition',
-  partitionEntitySuperClazz: {
-    name: 'BasePartitionEntity',
-    package: 'com.a1stream.common.model.BasePartitionEntity',
-  },
-  entityKeyPackage: 'com.a1stream.domain.entity.partition',
-  partitionKeySuperClazz: {
-    name: 'PartitionKey',
-    package: 'com.a1stream.common.model.PartitionKey',
-  },
+
   partitionKey: 'dealer_partition_',
   omitColumns: [
     'site_id_',
@@ -59,11 +69,6 @@ const defaultConfig: Config = {
     'update_program_',
     'update_counter_',
   ],
-  prettierOptions: {
-    tabWidth: 4,
-    printWidth: 200,
-    plugins: [javaPlugin],
-  },
   dataTypeMap: {
     'bigint': 'Long',
     'int8': 'Long',
@@ -129,4 +134,14 @@ export async function getConfig(): Promise<Config> {
   }
 
   return config
+}
+
+export function init(): void {
+  if (fs.existsSync(rcPath)) {
+    const config = ini.parse(fs.readFileSync(rcPath, 'utf-8'))
+    Object.assign(defaultConfig, config)
+  }
+  else {
+    fs.writeFileSync(rcPath, ini.stringify(defaultConfig))
+  }
 }

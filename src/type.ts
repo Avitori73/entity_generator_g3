@@ -1,42 +1,50 @@
 import type { Options as PrettierOptions } from 'prettier'
 
 export interface Config {
+  // prettier
+  prettierOptions: PrettierOptions
+
   // entity
   entityPackage: string
-  repositoryPackage: string
   simpleEntitySuperClazz: {
     name: string
     package: string
   }
-  repositorySuperClazz: {
-    name: string
-    package: string
-  }
-  voPackage: string
-  voSuperClazz: {
-    name: string
-    package: string
-  }
-  // partition entity
-  partitionVoPackage: string
-  partitionVoSuperClazz: {
-    name: string
-    package: string
-  }
   partitionEntityPackage: string
-  partitionRepositoryPackage: string
   partitionEntitySuperClazz: {
     name: string
     package: string
   }
+
+  // entity key
   entityKeyPackage: string
   partitionKeySuperClazz: {
     name: string
     package: string
   }
+
+  // repository
+  partitionRepositoryPackage: string
+  repositoryPackage: string
+  repositorySuperClazz: {
+    name: string
+    package: string
+  }
+
+  // vo
+  voPackage: string
+  voSuperClazz: {
+    name: string
+    package: string
+  }
+  partitionVoPackage: string
+  partitionVoSuperClazz: {
+    name: string
+    package: string
+  }
+
   partitionKey: string
   omitColumns: Array<string>
-  prettierOptions: PrettierOptions
   dataTypeMap: Record<string, string>
   dataImportMap: Record<string, string>
   defaultValueMap: Record<string, string>
