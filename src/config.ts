@@ -34,10 +34,6 @@ const defaultConfig: Config = {
 
   // entity key
   entityKeyPackage: 'com.a1stream.domain.entity.partition',
-  partitionKeySuperClazz: {
-    name: 'PartitionKey',
-    package: 'com.a1stream.common.model.PartitionKey',
-  },
 
   // repository
   partitionRepositoryPackage: 'com.a1stream.domain.repository.partition',

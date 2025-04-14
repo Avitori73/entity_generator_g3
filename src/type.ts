@@ -18,10 +18,6 @@ export interface Config {
 
   // entity key
   entityKeyPackage: string
-  partitionKeySuperClazz: {
-    name: string
-    package: string
-  }
 
   // repository
   partitionRepositoryPackage: string

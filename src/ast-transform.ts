@@ -47,9 +47,7 @@ export class PartitionJpaTransformer {
   private transformToEntityAST(ast: CreateTableStatement): JavaAST {
     const entityPackage = this.config.partitionEntityPackage
     const entitySuperClazz = this.config.partitionEntitySuperClazz
-    const partitionKey = this.config.partitionKey
     const omitCols = this.config.omitColumns
-    omitCols.push(partitionKey)
     const dataTypeMap = this.config.dataTypeMap
     const dataImportMap = this.config.dataImportMap
 
@@ -75,7 +73,7 @@ export class PartitionJpaTransformer {
         // Extract primary keys, but exclude partition key
         table.constraints?.forEach((constraint) => {
           if (constraint.type === 'primary key') {
-            primaryKeys.push(...constraint.columns.filter(col => col.name !== partitionKey).map(col => col.name))
+            primaryKeys.push(...constraint.columns.map(col => col.name))
           }
         })
       },
@@ -97,7 +95,7 @@ export class PartitionJpaTransformer {
         const isPrimaryKey = primaryKeys.includes(columnName)
 
         dataImportMap[type] && imports.push(createImportDeclaration(dataImportMap[type]))
-        classDeclaration.body.body.push(createEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
+        classDeclaration.body.body.push(createPartitionEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
       },
     })).statement(ast)
 
@@ -116,30 +114,32 @@ export class PartitionJpaTransformer {
   }
 
   private transformToEntityKeyAST(entityAst: JavaAST): JavaAST {
+    const partitionKey = this.config.partitionKey
     const entityKeyPackage = this.config.entityKeyPackage
-    const partitionkeySuperClazz = this.config.partitionKeySuperClazz
 
     const entityClassDeclaration = entityAst.body.find(node => node.type === 'ClassDeclaration')
     const entityClassName = entityClassDeclaration?.id.name || 'TempBaseEntity'
     const entityKeyClassName = `${entityClassName}Key`
-    const entityKeyIdFieldDeclaration = entityClassDeclaration
+    const entityKeyIdFieldDeclarations = entityClassDeclaration
       ?.body
       .body
-      .find((node): node is FieldDeclaration =>
-        node.type === 'FieldDeclaration' && node.annotations.some(a => a.id.name === 'Id'),
+      .filter((node): node is FieldDeclaration =>
+        node.type === 'FieldDeclaration' && node.annotations.some(a => a.id.name === 'Id') && node.id.name !== camelCase(partitionKey),
       )
 
-    if (!entityKeyIdFieldDeclaration) {
+    if (!entityKeyIdFieldDeclarations) {
       throw new Error(`Id field not found in table ${this.tableName}.`)
     }
 
-    const classDeclaration = createEntityKeyClassDeclaration(entityKeyClassName, entityKeyIdFieldDeclaration, partitionkeySuperClazz)
+    const partitionKeyFieldDeclaration = createFieldDeclaration(camelCase(partitionKey), createTypeDeclaration('String'))
+    partitionKeyFieldDeclaration.modifiers.push(createModifier('private'))
+
+    const classDeclaration = createEntityKeyClassDeclaration(entityKeyClassName, entityKeyIdFieldDeclarations, partitionKeyFieldDeclaration)
 
     const packageDeclaration = createPackageDeclaration(entityKeyPackage)
     const versionJavaDoc = createVersionJavaDoc()
 
     const imports = createEntityKeyImports()
-    imports.push(createImportDeclaration(partitionkeySuperClazz.package))
 
     return {
       type: 'JavaAST',
@@ -438,7 +438,11 @@ const keywordRenameMap: Record<string, string> = {
   class: 'clazz',
 }
 
-export function createEntityFieldDeclaration(column: CreateColumnDef, typeDeclaration: TypeDeclaration, isPrimaryKey: boolean): FieldDeclaration {
+export function createPartitionEntityFieldDeclaration(column: CreateColumnDef, typeDeclaration: TypeDeclaration, isPrimaryKey: boolean): FieldDeclaration {
+  return createEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey, true)
+}
+
+export function createEntityFieldDeclaration(column: CreateColumnDef, typeDeclaration: TypeDeclaration, isPrimaryKey: boolean, isPartition: boolean = false): FieldDeclaration {
   let fieldname = camelCase(column.name.name)
   if (keywordRenameMap[fieldname]) {
     fieldname = keywordRenameMap[fieldname]
@@ -448,7 +452,7 @@ export function createEntityFieldDeclaration(column: CreateColumnDef, typeDeclar
   fieldDeclaration.modifiers.push(createModifier('private'))
   if (isPrimaryKey) {
     fieldDeclaration.annotations.push(createAnnotation('Id'))
-    if (typeDeclaration.id.name === 'Long')
+    if (typeDeclaration.id.name === 'Long' && !isPartition)
       fieldDeclaration.annotations.push(createAnnotation('SnowflakeGenerator'))
   }
   fieldDeclaration.annotations.push(createColumnAnnotation(column))
@@ -487,41 +491,53 @@ export function createSerialVersionUID(): FieldDeclaration {
   return fieldDeclaration
 }
 
-export function createEntityKeyClassDeclaration(entityKeyClassName: string, idFieldDeclaration: FieldDeclaration | undefined, partitionkeySuperClazz: { name: string, package: string }): ClassDeclaration {
+export function createEntityKeyClassDeclaration(entityKeyClassName: string, idFieldDeclarations: FieldDeclaration[] | undefined, partitionKeyField: FieldDeclaration): ClassDeclaration {
   const entityKeyClass: ClassDeclaration = createClassDeclaration(entityKeyClassName, createEmptyBodyDeclaration())
   entityKeyClass.modifiers.push(createModifier('public'))
   entityKeyClass.annotations.push(createAnnotation('Data'))
-  entityKeyClass.annotations.push(createAnnotation('EqualsAndHashCode', { callSuper: true }))
-  entityKeyClass.superClass = createTypeDeclaration(partitionkeySuperClazz.name)
-  if (idFieldDeclaration) {
-    const idName = idFieldDeclaration.id.name
-    const idType = idFieldDeclaration.typeDeclaration
+  entityKeyClass.annotations.push(createAnnotation('NoArgsConstructor'))
+  entityKeyClass.implements.push(createTypeDeclaration('Serializable'))
+  if (idFieldDeclarations) {
+    const serialVersionUID = createSerialVersionUID()
 
-    const idField = createFieldDeclaration(idName, idType)
-    idField.modifiers.push(createModifier('private'))
+    const idFields = []
+    for (const idFieldDeclaration of idFieldDeclarations) {
+      const idName = idFieldDeclaration.id.name
+      const idType = idFieldDeclaration.typeDeclaration
 
-    const noArgsConstructorDeclaration = createConstructorDeclaration(entityKeyClassName)
-    noArgsConstructorDeclaration.modifiers.push(createModifier('public'))
-    noArgsConstructorDeclaration.body.body.push(createExpression(`super();`))
+      const idField = createFieldDeclaration(idName, idType)
+      idField.modifiers.push(createModifier('private'))
+      idFields.push(idField)
+    }
 
     const idArgsConstructorDeclaration = createConstructorDeclaration(entityKeyClassName)
     idArgsConstructorDeclaration.modifiers.push(createModifier('private'))
-    idArgsConstructorDeclaration.params.push(createParameter(idName, idType))
-    idArgsConstructorDeclaration.body.body.push(createExpression(`super();`))
-    idArgsConstructorDeclaration.body.body.push(createExpression(`this.${idName} = ${idName};`))
+    for (const idField of idFields) {
+      const idName = idField.id.name
+      const idType = idField.typeDeclaration
+      idArgsConstructorDeclaration.params.push(createParameter(idName, idType))
+      idArgsConstructorDeclaration.body.body.push(createExpression(`this.${idName} = ${idName};`))
+    }
+    idArgsConstructorDeclaration.body.body.push(createExpression('this.dealerPartition = UserDetailsUtil.getDealerPartition();'))
 
     const staticOfMethodDeclaration = createMethodDeclaration('of')
     staticOfMethodDeclaration.modifiers.push(createModifier('public'))
     staticOfMethodDeclaration.modifiers.push(createModifier('static'))
     staticOfMethodDeclaration.returnType = createTypeDeclaration(entityKeyClassName)
-    staticOfMethodDeclaration.params.push(createParameter(idName, idType))
+    for (const idField of idFields) {
+      const idName = idField.id.name
+      const idType = idField.typeDeclaration
+      staticOfMethodDeclaration.params.push(createParameter(idName, idType))
+    }
+    const idNames = idFields.map(idField => idField.id.name).join(', ')
     staticOfMethodDeclaration.body = createBlockStatement([
-      createExpression(`return new ${entityKeyClassName}(${idName});`),
+      createExpression(`return new ${entityKeyClassName}(${idNames});`),
     ])
 
     entityKeyClass.body.body.push(
-      idField,
-      noArgsConstructorDeclaration,
+      serialVersionUID,
+      ...idFields,
+      partitionKeyField,
       idArgsConstructorDeclaration,
       staticOfMethodDeclaration,
     )
