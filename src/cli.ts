@@ -194,5 +194,14 @@ async function javaAstToFile(javaAst: JavaAST, fileName: string, rootPath: strin
   const fileNameWithExtension = `${className}.java`
   const filePathWithFileName = resolve(filePath, fileNameWithExtension)
   const code = generateJavaCode(javaAst)
-  fs.writeFileSync(filePathWithFileName, await formatJavaCode(code.join('\n')))
+  try {
+    const formattedCode = await formatJavaCode(code.join('\n'))
+    fs.writeFileSync(filePathWithFileName, formattedCode)
+  }
+  // eslint-disable-next-line unused-imports/no-unused-vars
+  catch (error) {
+    const errMsg = `Error formatting java code in file '${fileNameWithExtension}'`
+    log.error(c.red(errMsg))
+    errorStack.push(errMsg)
+  }
 }

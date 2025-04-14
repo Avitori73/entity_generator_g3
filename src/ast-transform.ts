@@ -388,8 +388,10 @@ export function createBaseEntityImports(): Array<ImportDeclaration> {
 
 export function createEntityKeyImports(): Array<ImportDeclaration> {
   return [
-    createImportDeclaration('lombok.Data;'),
-    createImportDeclaration('lombok.EqualsAndHashCode;'),
+    createImportDeclaration('java.io.Serializable'),
+    createImportDeclaration('com.a1stream.common.utils.UserDetailsUtil'),
+    createImportDeclaration('lombok.Data'),
+    createImportDeclaration('lombok.NoArgsConstructor'),
   ]
 }
 
