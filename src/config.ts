@@ -57,7 +57,6 @@ const defaultConfig: Config = {
 
   partitionKey: 'dealer_partition_',
   omitColumns: [
-    'site_id_',
     'update_author_',
     'update_date_',
     'create_author_',
@@ -89,6 +88,8 @@ const defaultConfig: Config = {
     'boolean': 'Boolean',
     'bool': 'Boolean',
     'bytea': 'byte[]',
+    'jsonb': 'String',
+    'bpchar': 'String',
   },
   dataImportMap: {
     numeric: 'java.math.BigDecimal',

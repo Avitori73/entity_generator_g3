@@ -3,7 +3,6 @@ import type { Annotation, BodyDeclaration, ClassDeclaration, Config, FieldDeclar
 import { camelCase, pascalCase } from 'change-case'
 import { uniqBy } from 'lodash-es'
 import { astVisitor } from 'pgsql-ast-parser'
-import { version } from '../package.json'
 import { createAnnotation, createBlockStatement, createBodyDeclaration, createClassDeclaration, createConstructorDeclaration, createExpression, createFieldDeclaration, createImportDeclaration, createInterfaceDeclaration, createMethodDeclaration, createModifier, createPackageDeclaration, createParameter, createTypeDeclaration } from './ast-builder'
 import { getConfig } from './config'
 
@@ -363,8 +362,11 @@ export class SimpleJpaTransformer {
 
 export function createBaseVOImports(): Array<ImportDeclaration> {
   return [
-    createImportDeclaration('lombok.Getter'),
-    createImportDeclaration('lombok.Setter'),
+    createImportDeclaration('lombok.AllArgsConstructor'),
+    createImportDeclaration('lombok.Builder'),
+    createImportDeclaration('lombok.Data'),
+    createImportDeclaration('lombok.EqualsAndHashCode'),
+    createImportDeclaration('lombok.NoArgsConstructor'),
   ]
 }
 
@@ -399,7 +401,7 @@ export function createVersionJavaDoc(): JavaDoc {
   return {
     type: 'JavaDoc',
     value: [
-      `@author Entity Generator G3 - v${version}`,
+      `@author Entity Generator G3`,
     ],
   }
 }
@@ -429,8 +431,11 @@ export function createBaseEntityClass(superClazz: string): ClassDeclaration {
 export function createBaseVOClass(superClazz: string): ClassDeclaration {
   const tempEntityClass: ClassDeclaration = createClassDeclaration('TempBaseVO', createEmptyBodyDeclaration())
   tempEntityClass.modifiers.push(createModifier('public'))
-  tempEntityClass.annotations.push(createAnnotation('Getter'))
-  tempEntityClass.annotations.push(createAnnotation('Setter'))
+  tempEntityClass.annotations.push(createAnnotation('Data'))
+  tempEntityClass.annotations.push(createAnnotation('Builder'))
+  tempEntityClass.annotations.push(createAnnotation('AllArgsConstructor'))
+  tempEntityClass.annotations.push(createAnnotation('NoArgsConstructor'))
+  tempEntityClass.annotations.push(createAnnotation('EqualsAndHashCode', { callSuper: true }))
   tempEntityClass.superClass = createTypeDeclaration(superClazz)
   tempEntityClass.body.body.push(createSerialVersionUID())
   return tempEntityClass
@@ -587,6 +592,7 @@ export function createVOClass(entityAST: JavaAST, env: VOEnv): JavaAST {
     const fieldValue = defaultVOValueMap[fieldTypeName]
     if (fieldValue) {
       voFieldDeclaration.value = createExpression(fieldValue)
+      voFieldDeclaration.annotations.push(createAnnotation('Builder.Default'))
     }
 
     classDeclaration.body.body.push(voFieldDeclaration)
