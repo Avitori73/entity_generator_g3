@@ -1,5 +1,5 @@
 import type { BasicDataTypeDef, CreateColumnDef, CreateTableStatement } from 'pgsql-ast-parser'
-import type { Annotation, BodyDeclaration, ClassDeclaration, Config, FieldDeclaration, ImportDeclaration, InterfaceDeclaration, JavaAST, JavaDoc, TypeDeclaration } from './type'
+import type { Annotation, BodyDeclaration, ClassDeclaration, Config, FieldDeclaration, ImportDeclaration, InterfaceDeclaration, JavaAST, JavaDoc, MethodDeclaration, TypeDeclaration } from './type'
 import { camelCase, pascalCase } from 'change-case'
 import { uniqBy } from 'lodash-es'
 import { astVisitor } from 'pgsql-ast-parser'
@@ -200,12 +200,14 @@ export class PartitionJpaTransformer {
     const defaultVOValueMap = this.config.defaultVOValueMap
     const voPackage = this.config.partitionVoPackage
     const voSuperClazz = this.config.partitionVoSuperClazz
+    const partitionKeyName = this.config.partitionKey
     return createVOClass(entityAST, {
       voPackage,
       voSuperClazz,
       defaultVOImportMap,
       defaultVOValueMap,
-    })
+      partitionKeyName,
+    }, true)
   }
 }
 
@@ -351,11 +353,13 @@ export class SimpleJpaTransformer {
     const defaultVOValueMap = this.config.defaultVOValueMap
     const voPackage = this.config.voPackage
     const voSuperClazz = this.config.voSuperClazz
+    const partitionKeyName = this.config.partitionKey
     return createVOClass(entityAST, {
       voPackage,
       voSuperClazz,
       defaultVOImportMap,
       defaultVOValueMap,
+      partitionKeyName,
     })
   }
 }
@@ -557,10 +561,11 @@ interface VOEnv {
   voSuperClazz: { name: string, package: string }
   defaultVOImportMap: Record<string, string>
   defaultVOValueMap: Record<string, string>
+  partitionKeyName: string
 }
 
-export function createVOClass(entityAST: JavaAST, env: VOEnv): JavaAST {
-  const { voPackage, voSuperClazz, defaultVOImportMap, defaultVOValueMap } = env
+export function createVOClass(entityAST: JavaAST, env: VOEnv, isPartition: boolean = false): JavaAST {
+  const { voPackage, voSuperClazz, defaultVOImportMap, defaultVOValueMap, partitionKeyName } = env
   const packageDeclaration = createPackageDeclaration(voPackage)
   const imports = createBaseVOImports()
   const versionJavaDoc = createVersionJavaDoc()
@@ -570,14 +575,19 @@ export function createVOClass(entityAST: JavaAST, env: VOEnv): JavaAST {
 
   const entityClassDeclaration = entityAST.body.find(node => node.type === 'ClassDeclaration')
   const entityClassName = entityClassDeclaration?.id.name || 'TempBaseEntity'
-  classDeclaration.id.name = `${entityClassName}VO`
+  const entityVOClassName = `${entityClassName}VO`
+  classDeclaration.id.name = entityVOClassName
 
   const entityFieldDeclarations = entityClassDeclaration?.body.body.filter(node => node.type === 'FieldDeclaration') || []
+  let entityKeyIdFieldDeclaration
   for (const field of entityFieldDeclarations) {
     const fieldName = field.id.name
     if (fieldName === 'serialVersionUID')
       continue
 
+    if (!entityKeyIdFieldDeclaration) {
+      field.annotations.find(a => a.id.name === 'Id') && field.typeDeclaration.id.name === 'Long' && (entityKeyIdFieldDeclaration = field)
+    }
     const fieldType = field.typeDeclaration
     // import type
     const fieldTypeName = fieldType.id.name
@@ -598,6 +608,18 @@ export function createVOClass(entityAST: JavaAST, env: VOEnv): JavaAST {
     classDeclaration.body.body.push(voFieldDeclaration)
   }
 
+  if (entityKeyIdFieldDeclaration) {
+    imports.push(createImportDeclaration('com.ymsl.solid.base.util.IdUtils'))
+    const builderWithIdMethod = createBuilderWithIdFactoryMethod(entityVOClassName, entityKeyIdFieldDeclaration.id.name)
+    classDeclaration.body.body.push(builderWithIdMethod)
+
+    if (isPartition) {
+      imports.push(createImportDeclaration('com.a1stream.common.utils.UserDetailsUtil'))
+      const builderWithDefaultMethod = createBuilderWithDefaultFactoryMethod(entityVOClassName, entityKeyIdFieldDeclaration.id.name, partitionKeyName)
+      classDeclaration.body.body.push(builderWithDefaultMethod)
+    }
+  }
+
   const uniqueImports = uniqBy(imports, 'id.name')
 
   const voAST: JavaAST = {
@@ -610,4 +632,26 @@ export function createVOClass(entityAST: JavaAST, env: VOEnv): JavaAST {
     ],
   }
   return voAST
+}
+
+export function createBuilderWithIdFactoryMethod(entityClassName: string, entityIdName: string): MethodDeclaration {
+  const builderWithIdFactoryMethodDeclaration = createMethodDeclaration('builderWithId')
+  builderWithIdFactoryMethodDeclaration.modifiers.push(createModifier('public'))
+  builderWithIdFactoryMethodDeclaration.modifiers.push(createModifier('static'))
+  builderWithIdFactoryMethodDeclaration.returnType = createTypeDeclaration(`${entityClassName}Builder`)
+  builderWithIdFactoryMethodDeclaration.body = createBlockStatement([
+    createExpression(`return ${entityClassName}.builder().${entityIdName}(IdUtils.getSnowflakeIdWorker().nextId());`),
+  ])
+  return builderWithIdFactoryMethodDeclaration
+}
+
+export function createBuilderWithDefaultFactoryMethod(entityClassName: string, entityIdName: string, partitionKeyName: string): MethodDeclaration {
+  const builderWithDefaultFactoryMethodDeclaration = createMethodDeclaration('builderWithDefault')
+  builderWithDefaultFactoryMethodDeclaration.modifiers.push(createModifier('public'))
+  builderWithDefaultFactoryMethodDeclaration.modifiers.push(createModifier('static'))
+  builderWithDefaultFactoryMethodDeclaration.returnType = createTypeDeclaration(`${entityClassName}Builder`)
+  builderWithDefaultFactoryMethodDeclaration.body = createBlockStatement([
+    createExpression(`return ${entityClassName}.builder().${entityIdName}(IdUtils.getSnowflakeIdWorker().nextId()).${camelCase(partitionKeyName)}(UserDetailsUtil.getDealerPartition());`),
+  ])
+  return builderWithDefaultFactoryMethodDeclaration
 }
