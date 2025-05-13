@@ -1,7 +1,7 @@
 {
   "name": "entity_generator_g3",
   "type": "module",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "packageManager": "pnpm@10.7.0",
   "description": "It is an entity generator for G3 Framework.",
   "author": "Zhang Junrong <http:https://github.com/Avitori73>",
