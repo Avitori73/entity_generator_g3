@@ -29,6 +29,10 @@ export async function runJavaCli(): Promise<void> {
   const args = minimist(process.argv.slice(2))
   if (args.f || args.file) {
     filename = args.f || args.file
+    if (!fs.existsSync(filename)) {
+      log.error(c.red(`File not found: ${filename}`))
+      process.exit(1)
+    }
   }
   else {
     filename = await promptFilename()
