@@ -6,6 +6,7 @@ import { resolve } from 'node:path'
 import process from 'node:process'
 import { cancel, intro, isCancel, log, outro, spinner, tasks, text } from '@clack/prompts'
 import c from 'ansis'
+import minimist from 'minimist'
 import { rimrafSync } from 'rimraf'
 import { PartitionJpaTransformer, SimpleJpaTransformer } from './ast-transform'
 import { generateJavaCode } from './java-code-gen'
@@ -23,8 +24,17 @@ export async function runJavaCli(): Promise<void> {
   console.log('\n')
   intro(c.cyan(`Entity Generator For G3 Start`))
 
-  const filename = await promptFilename()
-  const statements = await detectCreateTableStatements(filename)
+  // 直接使用 -f 或 --file 参数来指定文件名
+  let filename
+  const args = minimist(process.argv.slice(2))
+  if (args.f || args.file) {
+    filename = args.f || args.file
+  }
+  else {
+    filename = await promptFilename()
+  }
+
+  const statements = await detectCreateTableStatements(filename!)
 
   await createOutput()
 
