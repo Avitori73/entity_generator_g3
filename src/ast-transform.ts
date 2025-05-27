@@ -93,7 +93,11 @@ export class PartitionJpaTransformer {
         const typeDeclaration = createTypeDeclaration(dataTypeMap[type] ?? 'Object')
         const isPrimaryKey = primaryKeys.includes(columnName)
 
-        dataImportMap[type] && imports.push(createImportDeclaration(dataImportMap[type]))
+        const importPaths = dataImportMap[type]
+        if (importPaths) {
+          (Array.isArray(importPaths) ? importPaths : [importPaths])
+            .forEach(importPath => imports.push(createImportDeclaration(importPath)))
+        }
         classDeclaration.body.body.push(createPartitionEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
       },
     })).statement(ast)
@@ -280,7 +284,11 @@ export class SimpleJpaTransformer {
         const typeDeclaration = createTypeDeclaration(dataTypeMap[type] ?? 'Object')
         const isPrimaryKey = primaryKeys.includes(columnName)
 
-        dataImportMap[type] && imports.push(createImportDeclaration(dataImportMap[type]))
+        const importPaths = dataImportMap[type]
+        if (importPaths) {
+          (Array.isArray(importPaths) ? importPaths : [importPaths])
+            .forEach(importPath => imports.push(createImportDeclaration(importPath)))
+        }
         classDeclaration.body.body.push(createEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
       },
     })).statement(ast)
@@ -460,6 +468,14 @@ export function createEntityFieldDeclaration(column: CreateColumnDef, typeDeclar
   }
 
   const fieldDeclaration = createFieldDeclaration(fieldname, typeDeclaration)
+
+  // TODO：重构成更通用的
+  const dataType = column.dataType as BasicDataTypeDef
+  const type = dataType.name
+  if (type === 'jsonb') {
+    fieldDeclaration.annotations.push(createAnnotation('Type', { value: createTypeDeclaration('StringJsonUserType') }))
+  }
+
   fieldDeclaration.modifiers.push(createModifier('private'))
   if (isPrimaryKey) {
     fieldDeclaration.annotations.push(createAnnotation('Id'))
@@ -483,6 +499,7 @@ export function createColumnAnnotation(column: CreateColumnDef): Annotation {
   const precision = percisionAndScaleRequired.includes(type) ? dataType.config?.[0] : undefined
   const scale = percisionAndScaleRequired.includes(type) ? dataType.config?.[1] : undefined
   const nullable = constraints?.some(c => c.type === 'null') || false
+  const columnDefinition = type === 'jsonb' ? 'jsonb' : undefined
 
   return createAnnotation('Column', {
     name,
@@ -490,6 +507,7 @@ export function createColumnAnnotation(column: CreateColumnDef): Annotation {
     precision,
     scale,
     nullable,
+    columnDefinition,
   })
 }
 

@@ -99,6 +99,7 @@ const defaultConfig: Config = {
     time: 'java.time.LocalTime',
     timetz: 'java.time.LocalTime',
     date: 'java.time.LocalDate',
+    jsonb: ['org.hibernate.annotations.Type', 'com.ymsl.solid.jpa.usertype.StringJsonUserType'],
   },
   defaultValueMap: {
     numeric: 'BigDecimal.ZERO',

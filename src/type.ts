@@ -42,7 +42,7 @@ export interface Config {
   partitionKey: string
   omitColumns: Array<string>
   dataTypeMap: Record<string, string>
-  dataImportMap: Record<string, string>
+  dataImportMap: Record<string, string | string[]>
   defaultValueMap: Record<string, string>
   defaultVOImportMap: Record<string, string>
   defaultVOValueMap: Record<string, string>
