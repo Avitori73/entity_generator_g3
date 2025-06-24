@@ -1,12 +1,17 @@
 import type { Options as PrettierOptions } from 'prettier'
 
+export interface JavaAstMeta {
+  entityClassName: string
+  primaryKeys: Array<string>
+}
+
 export interface Config {
   // prettier
   prettierOptions: PrettierOptions
 
   // entity
   entityPackage: string
-  simpleEntitySuperClazz: {
+  entitySuperClazz: {
     name: string
     package: string
   }
@@ -43,7 +48,6 @@ export interface Config {
   omitColumns: Array<string>
   dataTypeMap: Record<string, string>
   dataImportMap: Record<string, string | string[]>
-  defaultValueMap: Record<string, string>
   defaultVOImportMap: Record<string, string>
   defaultVOValueMap: Record<string, string>
 }
@@ -52,9 +56,11 @@ export interface BaseNode {
   type: string
 }
 
+export type JavaASTNode = JavaDoc | PackageDeclaration | ImportDeclaration | ClassDeclaration | InterfaceDeclaration
+
 export interface JavaAST {
   type: 'JavaAST'
-  body: Array<JavaDoc | LineComment | BlockComment | PackageDeclaration | ImportDeclaration | ClassDeclaration | InterfaceDeclaration>
+  body: Array<JavaASTNode>
 }
 
 export interface JavaDoc extends BaseNode {
@@ -94,9 +100,11 @@ export interface Attribute extends BaseNode {
   value: Expression | Expression[]
 }
 
+export type ModifierType = 'public' | 'private' | 'protected' | 'static' | 'abstract' | 'final'
+
 export interface Modifier extends BaseNode {
   type: 'Modifier'
-  name: 'public' | 'private' | 'protected' | 'static' | 'abstract' | 'final'
+  name: ModifierType
 }
 
 export interface PackageDeclaration extends BaseNode {
@@ -128,9 +136,11 @@ export interface ClassDeclaration extends BaseNode {
   body: BodyDeclaration
 }
 
+export type JavaClassBodyDeclaration = ConstructorDeclaration | MethodDeclaration | FieldDeclaration
+
 export interface BodyDeclaration extends BaseNode {
   type: 'BodyDeclaration'
-  body: Array<ConstructorDeclaration | MethodDeclaration | FieldDeclaration>
+  body: Array<JavaClassBodyDeclaration>
 }
 
 export interface ConstructorDeclaration extends BaseNode {
@@ -176,4 +186,54 @@ export interface TypeDeclaration extends BaseNode {
   type: 'TypeDeclaration'
   id: Identifier
   generics?: TypeDeclaration[]
+}
+
+export interface TableAstMeta {
+  tablename: string
+  primaryKeys: Array<string>
+  columns: Array<ColumnAstMeta>
+}
+
+export interface ColumnAstMeta {
+  columnName: string
+  columnType: string
+  columnDef: ColumnDef
+}
+
+export interface ColumnDef {
+  name: string
+  nullable: boolean
+  length?: number
+  precision?: number
+  scale?: number
+  columnDefinition?: string
+}
+
+export interface EntityFieldMeta extends ColumnAstMeta {
+  isPrimaryKey: boolean
+  isPartitionKey: boolean
+  fieldName: string
+  fieldType: string
+  imports?: string | string[]
+  defaultValue?: string
+  defaultVOImport?: string
+}
+
+export interface EntityMeta {
+  tablename: string
+  primaryKeys: Array<string>
+  entityPackage: string
+  entityRepositoryPackage: string
+  entityVOPackage: string
+  entitySuperClass: {
+    name: string
+    package: string
+  }
+  entityVOSuperClass: {
+    name: string
+    package: string
+  }
+  entityName: string
+  entityKeyName: string
+  columns: Array<EntityFieldMeta>
 }

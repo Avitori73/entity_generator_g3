@@ -9,8 +9,15 @@ export const modifierOrder = [
   'final',
 ]
 
+export const javaAstBodyNodePriority: Record<string, number> = {
+  PackageDeclaration: 0,
+  ImportDeclaration: 1,
+  JavaDoc: 2,
+
+}
+
 export function generateJavaCode(javaAst: JavaAST): Array<string> {
-  return javaAst.body.map(generateNode).flat()
+  return javaAst.body.sort().map(generateNode).flat()
 }
 
 export function generateJavaDoc(javaDoc: JavaDoc): Array<string> {

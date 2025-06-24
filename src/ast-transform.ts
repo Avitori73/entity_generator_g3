@@ -1,10 +1,52 @@
-import type { BasicDataTypeDef, CreateColumnDef, CreateTableStatement } from 'pgsql-ast-parser'
-import type { Annotation, BodyDeclaration, ClassDeclaration, Config, FieldDeclaration, ImportDeclaration, InterfaceDeclaration, JavaAST, JavaDoc, MethodDeclaration, TypeDeclaration } from './type'
-import { camelCase, pascalCase } from 'change-case'
-import { uniqBy } from 'lodash-es'
-import { astVisitor } from 'pgsql-ast-parser'
-import { createAnnotation, createBlockStatement, createBodyDeclaration, createClassDeclaration, createConstructorDeclaration, createExpression, createFieldDeclaration, createImportDeclaration, createInterfaceDeclaration, createMethodDeclaration, createModifier, createPackageDeclaration, createParameter, createTypeDeclaration } from './ast-builder'
-import { getConfig } from './config'
+import type { JavaAstAdapter } from './ast-adapter'
+import type { ConstructorDeclaration, EntityFieldMeta, FieldDeclaration, JavaAST, MethodDeclaration } from './type'
+
+import { ClassDeclarationBuilder, ConstructorDeclarationBuilder, createExpression, createTypeDeclaration, FieldDeclarationBuilder, InterfaceDeclarationBuilder, JavaAstBuilder, MethodDeclarationBuilder } from './ast-builder'
+
+export const BASE_ENTITY_IMPORTS = [
+  'jakarta.persistence.Column',
+  'jakarta.persistence.Entity',
+  'jakarta.persistence.Id',
+  'jakarta.persistence.PostLoad',
+  'jakarta.persistence.PostPersist',
+  'jakarta.persistence.Table',
+  'jakarta.persistence.Transient',
+  'lombok.Getter',
+  'lombok.Setter',
+  'org.springframework.data.domain.Persistable',
+]
+
+export const SNOWFLAKE_IMPORT = 'com.ymsl.solid.jpa.uuid.annotation.SnowflakeGenerator'
+
+export const BASE_ENTITY_KEY_IMPORTS = [
+  'com.a1stream.common.utils.UserDetailsUtil',
+  'java.io.Serializable',
+  'lombok.AllArgsConstructor',
+  'lombok.Data',
+  'lombok.NoArgsConstructor',
+]
+
+export const BASE_ENTITY_REPOSITORY_IMPORTS = [
+  'com.ymsl.solid.jpa.repository.JpaExtensionRepository',
+  'org.springframework.stereotype.Repository',
+]
+
+export const BASE_ENTITY_VO_IMPORTS = [
+  'com.ymsl.solid.base.util.IdUtils',
+  'lombok.AllArgsConstructor',
+  'lombok.Builder',
+  'lombok.Data',
+  'lombok.EqualsAndHashCode',
+  'lombok.NoArgsConstructor',
+]
+
+export const BASE_PARTITION_ENTITY_VO_IMPORTS = [
+  'com.a1stream.common.utils.UserDetailsUtil',
+]
+
+export const BASE_ENTITY_JAVADOC = [
+  `@author Entity Generator G3`,
+]
 
 export interface SimpleJpaUnit {
   entity: JavaAST
@@ -20,21 +62,17 @@ export interface PartitionJpaUnit {
 }
 
 export class PartitionJpaTransformer {
-  private config!: Config
-  private ast!: CreateTableStatement
-  private tableName!: string
+  private adapter: JavaAstAdapter
 
-  constructor(ast: CreateTableStatement) {
-    this.ast = ast
-    this.tableName = ast.name.name
+  constructor(adapter: JavaAstAdapter) {
+    this.adapter = adapter
   }
 
   async transform(): Promise<PartitionJpaUnit> {
-    this.config = await getConfig()
-    const entityAST = this.transformToEntityAST(this.ast)
-    const entityKeyAST = this.transformToEntityKeyAST(entityAST)
-    const repositoryAST = this.transformToRepositoryAST(entityAST, entityKeyAST)
-    const voAST = this.transformToVOAST(entityAST)
+    const entityAST = this.transformToEntityAST()
+    const entityKeyAST = this.transformToEntityKeyAST()
+    const repositoryAST = this.transformToRepositoryAST()
+    const voAST = this.transformToVOAST()
     return {
       entity: entityAST,
       entityKey: entityKeyAST,
@@ -43,193 +81,210 @@ export class PartitionJpaTransformer {
     }
   }
 
-  private transformToEntityAST(ast: CreateTableStatement): JavaAST {
-    const entityPackage = this.config.partitionEntityPackage
-    const entitySuperClazz = this.config.partitionEntitySuperClazz
-    const omitCols = this.config.omitColumns
-    const dataTypeMap = this.config.dataTypeMap
-    const dataImportMap = this.config.dataImportMap
+  private transformToEntityAST(): JavaAST {
+    const meta = this.adapter.getEntityMeta()
 
-    const packageDeclaration = createPackageDeclaration(entityPackage)
-    const imports = createBaseEntityImports()
-    const versionJavaDoc = createVersionJavaDoc()
-    const classDeclaration = createBaseEntityClass(entitySuperClazz.name)
+    const javaAstBuilder = JavaAstBuilder.create()
+      .setPackageDeclaration(meta.entityPackage)
+      .addImports([...BASE_ENTITY_IMPORTS, 'jakarta.persistence.IdClass', meta.entitySuperClass.package])
+      .setJavaDoc(BASE_ENTITY_JAVADOC)
 
-    imports.push(createImportDeclaration('jakarta.persistence.IdClass'))
-    imports.push(createImportDeclaration(entitySuperClazz.package))
+    const classDeclarationBuilder = ClassDeclarationBuilder.create(['public'], meta.entityName)
+      .setSuperClass(meta.entitySuperClass.name)
+      .addImplement('Persistable', [createTypeDeclaration(meta.entityKeyName)])
+      .addAnnotation('Entity')
+      .addAnnotation('Getter')
+      .addAnnotation('Setter')
+      .addAnnotation('IdClass', { value: createTypeDeclaration(meta.entityKeyName) })
+      .addAnnotation('Table', { name: meta.tablename })
 
-    const primaryKeys: Array<string> = []
+    classDeclarationBuilder.addField(createSerialVersionUID())
 
-    // visit table
-    astVisitor(() => ({
-      createTable: (table: CreateTableStatement) => {
-        const tablename = table.name.name
-        const entityClassName = pascalCase(tablename)
-        classDeclaration.id.name = entityClassName
-        classDeclaration.annotations.push(createAnnotation('IdClass', { value: createTypeDeclaration(`${entityClassName}Key`) }))
-        classDeclaration.annotations.push(createAnnotation('Table', { name: tablename }))
+    meta.columns.forEach((column) => {
+      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(['private'], column.fieldName, createTypeDeclaration(column.fieldType))
 
-        // Extract primary keys, but exclude partition key
-        table.constraints?.forEach((constraint) => {
-          if (constraint.type === 'primary key') {
-            primaryKeys.push(...constraint.columns.map(col => col.name))
-          }
-        })
-      },
-    })).statement(ast)
+      if (column.columnType === 'jsonb') {
+        fieldDeclarationBuilder.addAnnotation('Type', { value: createTypeDeclaration('StringJsonUserType') })
+      }
+      if (column.isPrimaryKey) {
+        fieldDeclarationBuilder.addAnnotation('Id')
+      }
+      fieldDeclarationBuilder.addAnnotation('Column', { ...column.columnDef })
 
-    // visit columns
-    astVisitor(() => ({
-      createColumn: (column: CreateColumnDef) => {
-        const isBasicDataTypeDef = column.dataType.kind !== 'array'
-        const isOmitColumn = omitCols.includes(column.name.name)
-        if (!isBasicDataTypeDef || isOmitColumn) {
-          return
-        }
+      classDeclarationBuilder.addField(fieldDeclarationBuilder.build())
 
-        const columnName = column.name.name
-        const dataType = column.dataType as BasicDataTypeDef
-        const type = dataType.name
-        const typeDeclaration = createTypeDeclaration(dataTypeMap[type] ?? 'Object')
-        const isPrimaryKey = primaryKeys.includes(columnName)
+      if (column.imports) {
+        const imports = Array.isArray(column.imports) ? column.imports : [column.imports]
+        imports.forEach(importPath => javaAstBuilder.addImport(importPath))
+      }
+    })
 
-        const importPaths = dataImportMap[type]
-        if (importPaths) {
-          (Array.isArray(importPaths) ? importPaths : [importPaths])
-            .forEach(importPath => imports.push(createImportDeclaration(importPath)))
-        }
-        classDeclaration.body.body.push(createPartitionEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
-      },
-    })).statement(ast)
+    classDeclarationBuilder.addField(createIsNew())
+    classDeclarationBuilder.addMethod(this.createGetIdMethod(meta.entityKeyName, meta.primaryKeys))
+    classDeclarationBuilder.addMethod(createIsNewMethod())
+    classDeclarationBuilder.addMethod(createMarkAsNotNewMethod())
 
-    const uniqueImports = uniqBy(imports, 'id.name')
+    javaAstBuilder.setClassDeclaration(classDeclarationBuilder.build())
 
-    const entityAST: JavaAST = {
-      type: 'JavaAST',
-      body: [
-        packageDeclaration,
-        ...uniqueImports,
-        versionJavaDoc,
-        classDeclaration,
-      ],
-    }
-    return entityAST
+    return javaAstBuilder.build()
   }
 
-  private transformToEntityKeyAST(entityAst: JavaAST): JavaAST {
-    const partitionKey = this.config.partitionKey
-    const entityKeyPackage = this.config.entityKeyPackage
-
-    const entityClassDeclaration = entityAst.body.find(node => node.type === 'ClassDeclaration')
-    const entityClassName = entityClassDeclaration?.id.name || 'TempBaseEntity'
-    const entityKeyClassName = `${entityClassName}Key`
-    const entityKeyIdFieldDeclarations = entityClassDeclaration
-      ?.body
-      .body
-      .filter((node): node is FieldDeclaration =>
-        node.type === 'FieldDeclaration' && node.annotations.some(a => a.id.name === 'Id') && node.id.name !== camelCase(partitionKey),
-      )
-
-    if (!entityKeyIdFieldDeclarations) {
-      throw new Error(`Id field not found in table ${this.tableName}.`)
-    }
-
-    const partitionKeyFieldDeclaration = createFieldDeclaration(camelCase(partitionKey), createTypeDeclaration('String'))
-    partitionKeyFieldDeclaration.modifiers.push(createModifier('private'))
-
-    const classDeclaration = createEntityKeyClassDeclaration(entityKeyClassName, entityKeyIdFieldDeclarations, partitionKeyFieldDeclaration)
-
-    const packageDeclaration = createPackageDeclaration(entityKeyPackage)
-    const versionJavaDoc = createVersionJavaDoc()
-
-    const imports = createEntityKeyImports()
-
-    return {
-      type: 'JavaAST',
-      body: [
-        packageDeclaration,
-        ...imports,
-        versionJavaDoc,
-        classDeclaration,
-      ],
-    }
+  private createGetIdMethod(keyName: string, primaryKeys: string[]): MethodDeclaration {
+    return MethodDeclarationBuilder.create(['public'], 'getId', createTypeDeclaration(keyName))
+      .addAnnotation('Override')
+      .addExpressions([createExpression(`return new ${keyName}(${primaryKeys.join(', ')});`)])
+      .build()
   }
 
-  private transformToRepositoryAST(entityAST: JavaAST, entityKeyAST: JavaAST): JavaAST {
-    const repositoryPackage = this.config.partitionRepositoryPackage
-    const entityPackage = this.config.partitionEntityPackage
-    const entityKeyPackage = this.config.entityKeyPackage
-    const repositorySuperClazz = this.config.repositorySuperClazz
+  private transformToEntityKeyAST(): JavaAST {
+    const meta = this.adapter.getEntityMeta()
 
-    const packageDeclaration = createPackageDeclaration(repositoryPackage)
-    const imports = createBaseRepositoryImports()
-    const versionJavaDoc = createVersionJavaDoc()
-    const interfaceDeclaration = createBaseRepositoryInterface()
+    const javaAstBuilder = JavaAstBuilder.create()
+      .setPackageDeclaration(meta.entityPackage)
+      .addImports(BASE_ENTITY_KEY_IMPORTS)
+      .setJavaDoc(BASE_ENTITY_JAVADOC)
 
-    const entityClassDeclaration = entityAST.body.find(node => node.type === 'ClassDeclaration')
-    const entityClassName = entityClassDeclaration?.id.name || 'TempBaseEntity'
-    const entityImport = createImportDeclaration(`${entityPackage}.${entityClassName}`)
-    imports.push(entityImport)
+    const classDeclarationBuilder = ClassDeclarationBuilder.create(['public'], meta.entityKeyName)
+      .addImplement('Serializable')
+      .addAnnotation('Data')
+      .addAnnotation('NoArgsConstructor')
+      .addAnnotation('AllArgsConstructor')
 
-    const entityKeyClassDeclaration = entityKeyAST.body.find(node => node.type === 'ClassDeclaration')
-    const entityKeyClassName = entityKeyClassDeclaration?.id.name || 'TempBaseEntityKey'
-    const entityKeyImport = createImportDeclaration(`${entityKeyPackage}.${entityKeyClassName}`)
-    imports.push(entityKeyImport)
+    classDeclarationBuilder.addField(createSerialVersionUID())
+    const primaryKeysFields = meta.columns.filter(column => column.isPrimaryKey)
+    primaryKeysFields.forEach((column) => {
+      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(['private'], column.fieldName, createTypeDeclaration(column.fieldType))
+      classDeclarationBuilder.addField(fieldDeclarationBuilder.build())
+    })
 
-    imports.push(createImportDeclaration(repositorySuperClazz.package))
+    classDeclarationBuilder.addConstructor(this.createEntityKeyConstructor(meta.entityKeyName, primaryKeysFields))
+    classDeclarationBuilder.addMethod(this.createOfFactoryMethod(meta.entityKeyName, primaryKeysFields))
+    classDeclarationBuilder.addMethod(this.createOfFactoryMethod(meta.entityKeyName, primaryKeysFields, false))
 
-    const repositoryClassName = `${entityClassName}Repository`
-    interfaceDeclaration.id.name = repositoryClassName
+    javaAstBuilder.setClassDeclaration(classDeclarationBuilder.build())
 
-    const generics = [createTypeDeclaration(entityClassName), createTypeDeclaration(entityKeyClassName)]
-    interfaceDeclaration.extends = [createTypeDeclaration(repositorySuperClazz.name, generics)]
-
-    const uniqueImports = uniqBy(imports, 'id.name')
-
-    const repositoryAST: JavaAST = {
-      type: 'JavaAST',
-      body: [
-        packageDeclaration,
-        ...uniqueImports,
-        versionJavaDoc,
-        interfaceDeclaration,
-      ],
-    }
-
-    return repositoryAST
+    return javaAstBuilder.build()
   }
 
-  private transformToVOAST(entityAST: JavaAST): JavaAST {
-    const defaultVOImportMap = this.config.defaultVOImportMap
-    const defaultVOValueMap = this.config.defaultVOValueMap
-    const voPackage = this.config.partitionVoPackage
-    const voSuperClazz = this.config.partitionVoSuperClazz
-    const partitionKeyName = this.config.partitionKey
-    return createVOClass(entityAST, {
-      voPackage,
-      voSuperClazz,
-      defaultVOImportMap,
-      defaultVOValueMap,
-      partitionKeyName,
-    }, true)
+  private createEntityKeyConstructor(keyName: string, primaryKeys: Array<EntityFieldMeta>): ConstructorDeclaration {
+    const constructorDeclarationBuilder = ConstructorDeclarationBuilder.create(['public'], keyName)
+    for (const key of primaryKeys) {
+      if (!key.isPartitionKey) {
+        constructorDeclarationBuilder.addParameter(key.fieldName, createTypeDeclaration(key.fieldType))
+        constructorDeclarationBuilder.addExpression(createExpression(`this.${key.fieldName} = ${key.fieldName};`))
+      }
+    }
+    constructorDeclarationBuilder.addExpression(createExpression('this.dealerPartition = UserDetailsUtil.getDealerPartition();'))
+    return constructorDeclarationBuilder.build()
+  }
+
+  private createOfFactoryMethod(keyName: string, primaryKeys: Array<EntityFieldMeta>, isExcludePartition: boolean = true): MethodDeclaration {
+    let primaryFields
+    if (isExcludePartition)
+      primaryFields = primaryKeys.filter(key => !key.isPartitionKey)
+    else
+      primaryFields = primaryKeys
+
+    const methodDeclarationBuilder = MethodDeclarationBuilder.create(['public', 'static'], 'of', createTypeDeclaration(keyName))
+    for (const key of primaryFields) {
+      methodDeclarationBuilder.addParameter(key.fieldName, createTypeDeclaration(key.fieldType))
+    }
+    methodDeclarationBuilder.addExpressions([createExpression(`return new ${keyName}(${primaryFields.map(v => v.fieldName).join(', ')});`)])
+
+    return methodDeclarationBuilder.build()
+  }
+
+  private transformToRepositoryAST(): JavaAST {
+    const meta = this.adapter.getEntityMeta()
+    const javaAstBuilder = JavaAstBuilder.create()
+      .setPackageDeclaration(meta.entityRepositoryPackage)
+      .addImports([
+        `${meta.entityPackage}.${meta.entityName}`,
+        `${meta.entityPackage}.${meta.entityKeyName}`,
+        ...BASE_ENTITY_REPOSITORY_IMPORTS,
+      ])
+      .setJavaDoc(BASE_ENTITY_JAVADOC)
+
+    const interfaceDeclaration = InterfaceDeclarationBuilder.create(['public'], `${meta.entityName}Repository`)
+      .addAnnotation('Repository')
+      .addExtend('JpaExtensionRepository', [createTypeDeclaration(meta.entityName), createTypeDeclaration(meta.entityKeyName)])
+      .build()
+
+    javaAstBuilder.setInterfaceDeclaration(interfaceDeclaration)
+
+    return javaAstBuilder.build()
+  }
+
+  private transformToVOAST(): JavaAST {
+    const meta = this.adapter.getEntityMeta()
+
+    const primaryKeys = meta.columns.filter(key => key.isPrimaryKey && !key.isPartitionKey)
+    if (primaryKeys.length === 0) {
+      throw new Error(`No primary key found for entity ${meta.entityName}`)
+    }
+    const primaryKey = primaryKeys[0]
+
+    const javaAstBuilder = JavaAstBuilder.create()
+      .setPackageDeclaration(meta.entityVOPackage)
+      .addImports([...BASE_ENTITY_VO_IMPORTS, ...BASE_PARTITION_ENTITY_VO_IMPORTS, meta.entityVOSuperClass.package])
+      .setJavaDoc(BASE_ENTITY_JAVADOC)
+
+    const entityVOName = `${meta.entityName}VO`
+
+    const classDeclarationBuilder = ClassDeclarationBuilder.create(['public'], entityVOName)
+      .setSuperClass(meta.entityVOSuperClass.name)
+      .addAnnotation('Data')
+      .addAnnotation('Builder')
+      .addAnnotation('AllArgsConstructor')
+      .addAnnotation('NoArgsConstructor')
+      .addAnnotation('EqualsAndHashCode', { callSuper: true })
+      .addField(createSerialVersionUID())
+
+    meta.columns.forEach((column) => {
+      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(['private'], column.fieldName, createTypeDeclaration(column.fieldType))
+      if (column.defaultValue) {
+        fieldDeclarationBuilder.setValue(createExpression(column.defaultValue))
+        fieldDeclarationBuilder.addAnnotation('Builder.Default')
+      }
+      classDeclarationBuilder.addField(fieldDeclarationBuilder.build())
+
+      if (column.defaultVOImport) {
+        javaAstBuilder.addImport(column.defaultVOImport)
+      }
+    })
+
+    if (primaryKey.fieldType === 'Long') {
+      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName))
+      classDeclarationBuilder.addMethod(this.createBuilderWithDefault(entityVOName, primaryKey.fieldName))
+    }
+
+    javaAstBuilder.setClassDeclaration(classDeclarationBuilder.build())
+
+    return javaAstBuilder.build()
+  }
+
+  private createBuilderWithDefault(keyName: string, primaryKey: string): MethodDeclaration {
+    return MethodDeclarationBuilder.create(['public', 'static'], 'builderWithDefault', createTypeDeclaration(`${keyName}Builder`))
+      .addExpressions([
+        createExpression(`return ${keyName}.builder()`),
+        createExpression(`    .${primaryKey}(IdUtils.getSnowflakeIdWorker().nextId())`),
+        createExpression(`    .dealerPartition(UserDetailsUtil.getDealerPartition());`),
+      ])
+      .build()
   }
 }
 
 export class SimpleJpaTransformer {
-  private config!: Config
-  private ast!: CreateTableStatement
-  private tableName!: string
+  private adapter: JavaAstAdapter
 
-  constructor(ast: CreateTableStatement) {
-    this.ast = ast
-    this.tableName = ast.name.name
+  constructor(adapter: JavaAstAdapter) {
+    this.adapter = adapter
   }
 
   async transform(): Promise<SimpleJpaUnit> {
-    this.config = await getConfig()
-    const entityAST = this.transformToEntityAST(this.ast)
-    const repositoryAST = this.transformToRepositoryAST(entityAST)
-    const voAST = this.transformToVOAST(entityAST)
+    const entityAST = this.transformToEntityAST()
+    const repositoryAST = this.transformToRepositoryAST()
+    const voAST = this.transformToVOAST()
     return {
       entity: entityAST,
       repository: repositoryAST,
@@ -237,439 +292,176 @@ export class SimpleJpaTransformer {
     }
   }
 
-  private transformToEntityAST(ast: CreateTableStatement): JavaAST {
-    const entityPackage = this.config.entityPackage
-    const entitySuperClazz = this.config.simpleEntitySuperClazz
-    const omitCols = this.config.omitColumns
-    const dataTypeMap = this.config.dataTypeMap
-    const dataImportMap = this.config.dataImportMap
+  private transformToEntityAST(): JavaAST {
+    const meta = this.adapter.getEntityMeta()
 
-    const packageDeclaration = createPackageDeclaration(entityPackage)
-    const imports = createBaseEntityImports()
-    const versionJavaDoc = createVersionJavaDoc()
-    const classDeclaration = createBaseEntityClass(entitySuperClazz.name)
+    const primaryKeys = meta.columns.filter(key => key.isPrimaryKey && !key.isPartitionKey)
+    if (primaryKeys.length === 0) {
+      throw new Error(`No primary key found for entity ${meta.entityName}`)
+    }
+    const primaryKey = primaryKeys[0]
 
-    imports.push(createImportDeclaration(entitySuperClazz.package))
+    const javaAstBuilder = JavaAstBuilder.create()
+      .setPackageDeclaration(meta.entityPackage)
+      .addImports([...BASE_ENTITY_IMPORTS, meta.entitySuperClass.package])
+      .setJavaDoc(BASE_ENTITY_JAVADOC)
 
-    const primaryKeys: Array<string> = []
+    const classDeclarationBuilder = ClassDeclarationBuilder.create(['public'], meta.entityName)
+      .setSuperClass(meta.entitySuperClass.name)
+      .addImplement('Persistable', [createTypeDeclaration(primaryKey.fieldType)])
+      .addAnnotation('Entity')
+      .addAnnotation('Getter')
+      .addAnnotation('Setter')
+      .addAnnotation('Table', { name: meta.tablename })
 
-    // visit table
-    astVisitor(() => ({
-      createTable: (table: CreateTableStatement) => {
-        const tablename = table.name.name
-        classDeclaration.id.name = pascalCase(tablename)
-        classDeclaration.annotations.push(createAnnotation('Table', { name: tablename }))
+    classDeclarationBuilder.addField(createSerialVersionUID())
 
-        // Extract primary keys
-        table.constraints?.forEach((constraint) => {
-          if (constraint.type === 'primary key') {
-            primaryKeys.push(...constraint.columns.map(col => col.name))
-          }
-        })
-      },
-    })).statement(ast)
+    meta.columns.forEach((column) => {
+      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(['private'], column.fieldName, createTypeDeclaration(column.fieldType))
 
-    // visit columns
-    astVisitor(() => ({
-      createColumn: (column: CreateColumnDef) => {
-        const isBasicDataTypeDef = column.dataType.kind !== 'array'
-        const isOmitColumn = omitCols.includes(column.name.name)
-        if (!isBasicDataTypeDef || isOmitColumn) {
-          return
+      if (column.columnType === 'jsonb') {
+        fieldDeclarationBuilder.addAnnotation('Type', { value: createTypeDeclaration('StringJsonUserType') })
+      }
+      if (column.isPrimaryKey) {
+        fieldDeclarationBuilder.addAnnotation('Id')
+        if (column.fieldType === 'Long') {
+          fieldDeclarationBuilder.addAnnotation('SnowflakeGenerator')
+          javaAstBuilder.addImport(SNOWFLAKE_IMPORT)
         }
+      }
+      fieldDeclarationBuilder.addAnnotation('Column', { ...column.columnDef })
 
-        const columnName = column.name.name
-        const dataType = column.dataType as BasicDataTypeDef
-        const type = dataType.name
-        const typeDeclaration = createTypeDeclaration(dataTypeMap[type] ?? 'Object')
-        const isPrimaryKey = primaryKeys.includes(columnName)
+      classDeclarationBuilder.addField(fieldDeclarationBuilder.build())
 
-        const importPaths = dataImportMap[type]
-        if (importPaths) {
-          (Array.isArray(importPaths) ? importPaths : [importPaths])
-            .forEach(importPath => imports.push(createImportDeclaration(importPath)))
-        }
-        classDeclaration.body.body.push(createEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey))
-      },
-    })).statement(ast)
-
-    const uniqueImports = uniqBy(imports, 'id.name')
-
-    const entityAST: JavaAST = {
-      type: 'JavaAST',
-      body: [
-        packageDeclaration,
-        ...uniqueImports,
-        versionJavaDoc,
-        classDeclaration,
-      ],
-    }
-    return entityAST
-  }
-
-  private transformToRepositoryAST(entityAST: JavaAST): JavaAST {
-    const repositoryPackage = this.config.repositoryPackage
-    const entityPackage = this.config.entityPackage
-    const repositorySuperClazz = this.config.repositorySuperClazz
-
-    const packageDeclaration = createPackageDeclaration(repositoryPackage)
-    const imports = createBaseRepositoryImports()
-    const versionJavaDoc = createVersionJavaDoc()
-    const interfaceDeclaration = createBaseRepositoryInterface()
-
-    const entityClassDeclaration = entityAST.body.find(node => node.type === 'ClassDeclaration')
-    const entityClassName = entityClassDeclaration?.id.name || 'TempBaseEntity'
-    const entityImport = createImportDeclaration(`${entityPackage}.${entityClassName}`)
-    imports.push(entityImport)
-    imports.push(createImportDeclaration(repositorySuperClazz.package))
-
-    const repositoryClassName = `${entityClassName}Repository`
-    interfaceDeclaration.id.name = repositoryClassName
-
-    const idFieldDeclaration = entityClassDeclaration
-      ?.body
-      .body
-      .find((node): node is FieldDeclaration =>
-        node.type === 'FieldDeclaration' && node.annotations.some(a => a.id.name === 'Id'),
-      )
-      ?.typeDeclaration
-
-    if (!idFieldDeclaration) {
-      throw new Error(`Id field not found in table ${this.tableName}.`)
-    }
-
-    const generics = [createTypeDeclaration(entityClassName), idFieldDeclaration]
-    interfaceDeclaration.extends = [createTypeDeclaration(repositorySuperClazz.name, generics)]
-
-    const uniqueImports = uniqBy(imports, 'id.name')
-
-    const repositoryAST: JavaAST = {
-      type: 'JavaAST',
-      body: [
-        packageDeclaration,
-        ...uniqueImports,
-        versionJavaDoc,
-        interfaceDeclaration,
-      ],
-    }
-
-    return repositoryAST
-  }
-
-  private transformToVOAST(entityAST: JavaAST): JavaAST {
-    const defaultVOImportMap = this.config.defaultVOImportMap
-    const defaultVOValueMap = this.config.defaultVOValueMap
-    const voPackage = this.config.voPackage
-    const voSuperClazz = this.config.voSuperClazz
-    const partitionKeyName = this.config.partitionKey
-    return createVOClass(entityAST, {
-      voPackage,
-      voSuperClazz,
-      defaultVOImportMap,
-      defaultVOValueMap,
-      partitionKeyName,
+      if (column.imports) {
+        const imports = Array.isArray(column.imports) ? column.imports : [column.imports]
+        imports.forEach(importPath => javaAstBuilder.addImport(importPath))
+      }
     })
-  }
-}
 
-export function createBaseVOImports(): Array<ImportDeclaration> {
-  return [
-    createImportDeclaration('lombok.AllArgsConstructor'),
-    createImportDeclaration('lombok.Builder'),
-    createImportDeclaration('lombok.Data'),
-    createImportDeclaration('lombok.EqualsAndHashCode'),
-    createImportDeclaration('lombok.NoArgsConstructor'),
-  ]
-}
+    classDeclarationBuilder.addField(createIsNew())
+    classDeclarationBuilder.addMethod(this.createGetIdMethod(primaryKey.fieldName, primaryKey.fieldType))
+    classDeclarationBuilder.addMethod(createIsNewMethod())
+    classDeclarationBuilder.addMethod(createMarkAsNotNewMethod())
 
-export function createBaseRepositoryImports(): Array<ImportDeclaration> {
-  return [
-    createImportDeclaration('org.springframework.stereotype.Repository'),
-  ]
-}
+    javaAstBuilder.setClassDeclaration(classDeclarationBuilder.build())
 
-export function createBaseEntityImports(): Array<ImportDeclaration> {
-  return [
-    createImportDeclaration('com.ymsl.solid.jpa.uuid.annotation.SnowflakeGenerator'),
-    createImportDeclaration('jakarta.persistence.Column'),
-    createImportDeclaration('jakarta.persistence.Entity'),
-    createImportDeclaration('jakarta.persistence.Id'),
-    createImportDeclaration('jakarta.persistence.Table'),
-    createImportDeclaration('lombok.Getter'),
-    createImportDeclaration('lombok.Setter'),
-  ]
-}
-
-export function createEntityKeyImports(): Array<ImportDeclaration> {
-  return [
-    createImportDeclaration('java.io.Serializable'),
-    createImportDeclaration('com.a1stream.common.utils.UserDetailsUtil'),
-    createImportDeclaration('lombok.Data'),
-    createImportDeclaration('lombok.NoArgsConstructor'),
-  ]
-}
-
-export function createVersionJavaDoc(): JavaDoc {
-  return {
-    type: 'JavaDoc',
-    value: [
-      `@author Entity Generator G3`,
-    ],
-  }
-}
-
-export function createBaseRepositoryInterface(): InterfaceDeclaration {
-  const tempRepositoryInterface: InterfaceDeclaration = createInterfaceDeclaration('TempBaseEntityRepository', createEmptyBodyDeclaration())
-  tempRepositoryInterface.modifiers.push(createModifier('public'))
-  tempRepositoryInterface.annotations.push(createAnnotation('Repository'))
-  return tempRepositoryInterface
-}
-
-export function createEmptyBodyDeclaration(): BodyDeclaration {
-  return createBodyDeclaration([])
-}
-
-export function createBaseEntityClass(superClazz: string): ClassDeclaration {
-  const tempEntityClass: ClassDeclaration = createClassDeclaration('TempBaseEntity', createEmptyBodyDeclaration())
-  tempEntityClass.modifiers.push(createModifier('public'))
-  tempEntityClass.annotations.push(createAnnotation('Entity'))
-  tempEntityClass.annotations.push(createAnnotation('Getter'))
-  tempEntityClass.annotations.push(createAnnotation('Setter'))
-  tempEntityClass.superClass = createTypeDeclaration(superClazz)
-  tempEntityClass.body.body.push(createSerialVersionUID())
-  return tempEntityClass
-}
-
-export function createBaseVOClass(superClazz: string): ClassDeclaration {
-  const tempEntityClass: ClassDeclaration = createClassDeclaration('TempBaseVO', createEmptyBodyDeclaration())
-  tempEntityClass.modifiers.push(createModifier('public'))
-  tempEntityClass.annotations.push(createAnnotation('Data'))
-  tempEntityClass.annotations.push(createAnnotation('Builder'))
-  tempEntityClass.annotations.push(createAnnotation('AllArgsConstructor'))
-  tempEntityClass.annotations.push(createAnnotation('NoArgsConstructor'))
-  tempEntityClass.annotations.push(createAnnotation('EqualsAndHashCode', { callSuper: true }))
-  tempEntityClass.superClass = createTypeDeclaration(superClazz)
-  tempEntityClass.body.body.push(createSerialVersionUID())
-  return tempEntityClass
-}
-
-const keywordRenameMap: Record<string, string> = {
-  class: 'clazz',
-}
-
-export function createPartitionEntityFieldDeclaration(column: CreateColumnDef, typeDeclaration: TypeDeclaration, isPrimaryKey: boolean): FieldDeclaration {
-  return createEntityFieldDeclaration(column, typeDeclaration, isPrimaryKey, true)
-}
-
-export function createEntityFieldDeclaration(column: CreateColumnDef, typeDeclaration: TypeDeclaration, isPrimaryKey: boolean, isPartition: boolean = false): FieldDeclaration {
-  let fieldname = camelCase(column.name.name)
-  if (keywordRenameMap[fieldname]) {
-    fieldname = keywordRenameMap[fieldname]
+    return javaAstBuilder.build()
   }
 
-  const fieldDeclaration = createFieldDeclaration(fieldname, typeDeclaration)
-
-  // TODO：重构成更通用的
-  const dataType = column.dataType as BasicDataTypeDef
-  const type = dataType.name
-  if (type === 'jsonb') {
-    fieldDeclaration.annotations.push(createAnnotation('Type', { value: createTypeDeclaration('StringJsonUserType') }))
+  private createGetIdMethod(keyName: string, keyType: string): MethodDeclaration {
+    return MethodDeclarationBuilder.create(['public'], 'getId', createTypeDeclaration(keyType))
+      .addAnnotation('Override')
+      .addExpressions([createExpression(`return ${keyName};`)])
+      .build()
   }
 
-  fieldDeclaration.modifiers.push(createModifier('private'))
-  if (isPrimaryKey) {
-    fieldDeclaration.annotations.push(createAnnotation('Id'))
-    if (typeDeclaration.id.name === 'Long' && !isPartition)
-      fieldDeclaration.annotations.push(createAnnotation('SnowflakeGenerator'))
+  private transformToRepositoryAST(): JavaAST {
+    const meta = this.adapter.getEntityMeta()
+
+    const primaryKeys = meta.columns.filter(key => key.isPrimaryKey && !key.isPartitionKey)
+    if (primaryKeys.length === 0) {
+      throw new Error(`No primary key found for entity ${meta.entityName}`)
+    }
+    const primaryKey = primaryKeys[0]
+
+    const javaAstBuilder = JavaAstBuilder.create()
+      .setPackageDeclaration(meta.entityRepositoryPackage)
+      .addImports([
+        `${meta.entityPackage}.${meta.entityName}`,
+        ...BASE_ENTITY_REPOSITORY_IMPORTS,
+      ])
+      .setJavaDoc(BASE_ENTITY_JAVADOC)
+
+    const interfaceDeclaration = InterfaceDeclarationBuilder.create(['public'], `${meta.entityName}Repository`)
+      .addAnnotation('Repository')
+      .addExtend('JpaExtensionRepository', [createTypeDeclaration(meta.entityName), createTypeDeclaration(primaryKey.fieldType)])
+      .build()
+
+    javaAstBuilder.setInterfaceDeclaration(interfaceDeclaration)
+
+    return javaAstBuilder.build()
   }
-  fieldDeclaration.annotations.push(createColumnAnnotation(column))
-  return fieldDeclaration
-}
 
-export function createColumnAnnotation(column: CreateColumnDef): Annotation {
-  const lengthRequired = ['character varying', 'varchar']
-  const percisionAndScaleRequired = ['numeric']
+  private transformToVOAST(): JavaAST {
+    const meta = this.adapter.getEntityMeta()
 
-  const dataType = column.dataType as BasicDataTypeDef
-  const constraints = column.constraints
+    const primaryKeys = meta.columns.filter(key => key.isPrimaryKey && !key.isPartitionKey)
+    if (primaryKeys.length === 0) {
+      throw new Error(`No primary key found for entity ${meta.entityName}`)
+    }
+    const primaryKey = primaryKeys[0]
 
-  const name = column.name.name
-  const type = dataType.name
-  const length = lengthRequired.includes(type) ? dataType.config?.[0] : undefined
-  const precision = percisionAndScaleRequired.includes(type) ? dataType.config?.[0] : undefined
-  const scale = percisionAndScaleRequired.includes(type) ? dataType.config?.[1] : undefined
-  const nullable = constraints?.some(c => c.type === 'null') || false
-  const columnDefinition = type === 'jsonb' ? 'jsonb' : undefined
+    const javaAstBuilder = JavaAstBuilder.create()
+      .setPackageDeclaration(meta.entityVOPackage)
+      .addImports([...BASE_ENTITY_VO_IMPORTS, meta.entityVOSuperClass.package])
+      .setJavaDoc(BASE_ENTITY_JAVADOC)
 
-  return createAnnotation('Column', {
-    name,
-    length,
-    precision,
-    scale,
-    nullable,
-    columnDefinition,
-  })
-}
+    const entityVOName = `${meta.entityName}VO`
 
-export function createSerialVersionUID(): FieldDeclaration {
-  const fieldDeclaration = createFieldDeclaration('serialVersionUID', createTypeDeclaration('long'))
-  fieldDeclaration.modifiers.push(createModifier('private'))
-  fieldDeclaration.modifiers.push(createModifier('static'))
-  fieldDeclaration.modifiers.push(createModifier('final'))
-  fieldDeclaration.value = createExpression('1L')
-  return fieldDeclaration
-}
+    const classDeclarationBuilder = ClassDeclarationBuilder.create(['public'], entityVOName)
+      .setSuperClass(meta.entityVOSuperClass.name)
+      .addAnnotation('Data')
+      .addAnnotation('Builder')
+      .addAnnotation('AllArgsConstructor')
+      .addAnnotation('NoArgsConstructor')
+      .addAnnotation('EqualsAndHashCode', { callSuper: true })
+      .addField(createSerialVersionUID())
 
-export function createEntityKeyClassDeclaration(entityKeyClassName: string, idFieldDeclarations: FieldDeclaration[] | undefined, partitionKeyField: FieldDeclaration): ClassDeclaration {
-  const entityKeyClass: ClassDeclaration = createClassDeclaration(entityKeyClassName, createEmptyBodyDeclaration())
-  entityKeyClass.modifiers.push(createModifier('public'))
-  entityKeyClass.annotations.push(createAnnotation('Data'))
-  entityKeyClass.annotations.push(createAnnotation('NoArgsConstructor'))
-  entityKeyClass.implements.push(createTypeDeclaration('Serializable'))
-  if (idFieldDeclarations) {
-    const serialVersionUID = createSerialVersionUID()
+    meta.columns.forEach((column) => {
+      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(['private'], column.fieldName, createTypeDeclaration(column.fieldType))
+      if (column.defaultValue) {
+        fieldDeclarationBuilder.setValue(createExpression(column.defaultValue))
+        fieldDeclarationBuilder.addAnnotation('Builder.Default')
+      }
+      classDeclarationBuilder.addField(fieldDeclarationBuilder.build())
 
-    const idFields = []
-    for (const idFieldDeclaration of idFieldDeclarations) {
-      const idName = idFieldDeclaration.id.name
-      const idType = idFieldDeclaration.typeDeclaration
+      if (column.defaultVOImport) {
+        javaAstBuilder.addImport(column.defaultVOImport)
+      }
+    })
 
-      const idField = createFieldDeclaration(idName, idType)
-      idField.modifiers.push(createModifier('private'))
-      idFields.push(idField)
+    if (primaryKey.fieldType === 'Long') {
+      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName))
     }
 
-    const idArgsConstructorDeclaration = createConstructorDeclaration(entityKeyClassName)
-    idArgsConstructorDeclaration.modifiers.push(createModifier('private'))
-    for (const idField of idFields) {
-      const idName = idField.id.name
-      const idType = idField.typeDeclaration
-      idArgsConstructorDeclaration.params.push(createParameter(idName, idType))
-      idArgsConstructorDeclaration.body.body.push(createExpression(`this.${idName} = ${idName};`))
-    }
-    idArgsConstructorDeclaration.body.body.push(createExpression('this.dealerPartition = UserDetailsUtil.getDealerPartition();'))
+    javaAstBuilder.setClassDeclaration(classDeclarationBuilder.build())
 
-    const staticOfMethodDeclaration = createMethodDeclaration('of')
-    staticOfMethodDeclaration.modifiers.push(createModifier('public'))
-    staticOfMethodDeclaration.modifiers.push(createModifier('static'))
-    staticOfMethodDeclaration.returnType = createTypeDeclaration(entityKeyClassName)
-    for (const idField of idFields) {
-      const idName = idField.id.name
-      const idType = idField.typeDeclaration
-      staticOfMethodDeclaration.params.push(createParameter(idName, idType))
-    }
-    const idNames = idFields.map(idField => idField.id.name).join(', ')
-    staticOfMethodDeclaration.body = createBlockStatement([
-      createExpression(`return new ${entityKeyClassName}(${idNames});`),
-    ])
-
-    entityKeyClass.body.body.push(
-      serialVersionUID,
-      ...idFields,
-      partitionKeyField,
-      idArgsConstructorDeclaration,
-      staticOfMethodDeclaration,
-    )
+    return javaAstBuilder.build()
   }
-  return entityKeyClass
 }
 
-interface VOEnv {
-  voPackage: string
-  voSuperClazz: { name: string, package: string }
-  defaultVOImportMap: Record<string, string>
-  defaultVOValueMap: Record<string, string>
-  partitionKeyName: string
+// common utility functions for creating fields and methods
+function createSerialVersionUID(): FieldDeclaration {
+  return FieldDeclarationBuilder.create(['private', 'static', 'final'], 'serialVersionUID', createTypeDeclaration('long'))
+    .setValue(createExpression('1L'))
+    .build()
 }
 
-export function createVOClass(entityAST: JavaAST, env: VOEnv, isPartition: boolean = false): JavaAST {
-  const { voPackage, voSuperClazz, defaultVOImportMap, defaultVOValueMap, partitionKeyName } = env
-  const packageDeclaration = createPackageDeclaration(voPackage)
-  const imports = createBaseVOImports()
-  const versionJavaDoc = createVersionJavaDoc()
-  const classDeclaration = createBaseVOClass(voSuperClazz.name)
-
-  imports.push(createImportDeclaration(voSuperClazz.package))
-
-  const entityClassDeclaration = entityAST.body.find(node => node.type === 'ClassDeclaration')
-  const entityClassName = entityClassDeclaration?.id.name || 'TempBaseEntity'
-  const entityVOClassName = `${entityClassName}VO`
-  classDeclaration.id.name = entityVOClassName
-
-  const entityFieldDeclarations = entityClassDeclaration?.body.body.filter(node => node.type === 'FieldDeclaration') || []
-  let entityKeyIdFieldDeclaration
-  for (const field of entityFieldDeclarations) {
-    const fieldName = field.id.name
-    if (fieldName === 'serialVersionUID')
-      continue
-
-    if (!entityKeyIdFieldDeclaration) {
-      field.annotations.find(a => a.id.name === 'Id') && field.typeDeclaration.id.name === 'Long' && (entityKeyIdFieldDeclaration = field)
-    }
-    const fieldType = field.typeDeclaration
-    // import type
-    const fieldTypeName = fieldType.id.name
-    const fieldTypePackage = defaultVOImportMap[fieldTypeName]
-    if (fieldTypePackage) {
-      imports.push(createImportDeclaration(fieldTypePackage))
-    }
-    // create field declaration
-    const voFieldDeclaration = createFieldDeclaration(fieldName, fieldType)
-    voFieldDeclaration.modifiers.push(createModifier('private'))
-    // set default value
-    const fieldValue = defaultVOValueMap[fieldTypeName]
-    if (fieldValue) {
-      voFieldDeclaration.value = createExpression(fieldValue)
-      voFieldDeclaration.annotations.push(createAnnotation('Builder.Default'))
-    }
-
-    classDeclaration.body.body.push(voFieldDeclaration)
-  }
-
-  if (entityKeyIdFieldDeclaration) {
-    imports.push(createImportDeclaration('com.ymsl.solid.base.util.IdUtils'))
-    const builderWithIdMethod = createBuilderWithIdFactoryMethod(entityVOClassName, entityKeyIdFieldDeclaration.id.name)
-    classDeclaration.body.body.push(builderWithIdMethod)
-
-    if (isPartition) {
-      imports.push(createImportDeclaration('com.a1stream.common.utils.UserDetailsUtil'))
-      const builderWithDefaultMethod = createBuilderWithDefaultFactoryMethod(entityVOClassName, entityKeyIdFieldDeclaration.id.name, partitionKeyName)
-      classDeclaration.body.body.push(builderWithDefaultMethod)
-    }
-  }
-
-  const uniqueImports = uniqBy(imports, 'id.name')
-
-  const voAST: JavaAST = {
-    type: 'JavaAST',
-    body: [
-      packageDeclaration,
-      ...uniqueImports,
-      versionJavaDoc,
-      classDeclaration,
-    ],
-  }
-  return voAST
+function createIsNew(): FieldDeclaration {
+  return FieldDeclarationBuilder.create(['private'], 'isNew', createTypeDeclaration('boolean'))
+    .addAnnotation('Transient')
+    .setValue(createExpression('true'))
+    .build()
 }
 
-export function createBuilderWithIdFactoryMethod(entityClassName: string, entityIdName: string): MethodDeclaration {
-  const builderWithIdFactoryMethodDeclaration = createMethodDeclaration('builderWithId')
-  builderWithIdFactoryMethodDeclaration.modifiers.push(createModifier('public'))
-  builderWithIdFactoryMethodDeclaration.modifiers.push(createModifier('static'))
-  builderWithIdFactoryMethodDeclaration.returnType = createTypeDeclaration(`${entityClassName}Builder`)
-  builderWithIdFactoryMethodDeclaration.body = createBlockStatement([
-    createExpression(`return ${entityClassName}.builder().${entityIdName}(IdUtils.getSnowflakeIdWorker().nextId());`),
-  ])
-  return builderWithIdFactoryMethodDeclaration
+function createIsNewMethod(): MethodDeclaration {
+  return MethodDeclarationBuilder.create(['public'], 'isNew', createTypeDeclaration('boolean'))
+    .addAnnotation('Override')
+    .addExpressions([createExpression(`return isNew;`)])
+    .build()
 }
 
-export function createBuilderWithDefaultFactoryMethod(entityClassName: string, entityIdName: string, partitionKeyName: string): MethodDeclaration {
-  const builderWithDefaultFactoryMethodDeclaration = createMethodDeclaration('builderWithDefault')
-  builderWithDefaultFactoryMethodDeclaration.modifiers.push(createModifier('public'))
-  builderWithDefaultFactoryMethodDeclaration.modifiers.push(createModifier('static'))
-  builderWithDefaultFactoryMethodDeclaration.returnType = createTypeDeclaration(`${entityClassName}Builder`)
-  builderWithDefaultFactoryMethodDeclaration.body = createBlockStatement([
-    createExpression(`return ${entityClassName}.builder().${entityIdName}(IdUtils.getSnowflakeIdWorker().nextId()).${camelCase(partitionKeyName)}(UserDetailsUtil.getDealerPartition());`),
-  ])
-  return builderWithDefaultFactoryMethodDeclaration
+function createMarkAsNotNewMethod(): MethodDeclaration {
+  return MethodDeclarationBuilder.create(['public'], 'markAsNotNew', createTypeDeclaration('void'))
+    .addAnnotation('PostPersist')
+    .addAnnotation('PostLoad')
+    .addExpressions([createExpression(`this.isNew = false;`)])
+    .build()
+}
+
+function createBuilderWithId(keyName: string, primaryKey: string): MethodDeclaration {
+  return MethodDeclarationBuilder.create(['public', 'static'], 'builderWithId', createTypeDeclaration(`${keyName}Builder`))
+    .addExpressions([createExpression(`return ${keyName}.builder().${primaryKey}(IdUtils.getSnowflakeIdWorker().nextId());`)])
+    .build()
 }

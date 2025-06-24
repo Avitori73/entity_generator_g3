@@ -22,7 +22,7 @@ const defaultConfig: Config = {
 
   // entity
   entityPackage: 'com.a1stream.domain.entity',
-  simpleEntitySuperClazz: {
+  entitySuperClazz: {
     name: 'BaseEntity',
     package: 'com.a1stream.common.model.BaseEntity',
   },
@@ -101,18 +101,28 @@ const defaultConfig: Config = {
     date: 'java.time.LocalDate',
     jsonb: ['org.hibernate.annotations.Type', 'com.ymsl.solid.jpa.usertype.StringJsonUserType'],
   },
-  defaultValueMap: {
-    numeric: 'BigDecimal.ZERO',
-    decimal: 'BigDecimal.ZERO',
-  },
   defaultVOImportMap: {
-    BigDecimal: 'java.math.BigDecimal',
-    Integer: 'com.a1stream.common.constants.CommonConstants',
-    Instant: 'java.time.Instant',
+    integer: 'com.a1stream.common.constants.CommonConstants',
+    int: 'com.a1stream.common.constants.CommonConstants',
+    int4: 'com.a1stream.common.constants.CommonConstants',
+    smallint: 'com.a1stream.common.constants.CommonConstants',
+    int2: 'com.a1stream.common.constants.CommonConstants',
+    numeric: 'java.math.BigDecimal',
+    decimal: 'java.math.BigDecimal',
+    timestamptz: 'java.time.Instant',
+    timestamp: 'java.time.Instant',
+    time: 'java.time.LocalTime',
+    timetz: 'java.time.LocalTime',
+    date: 'java.time.LocalDate',
   },
   defaultVOValueMap: {
-    BigDecimal: 'BigDecimal.ZERO',
-    Integer: 'CommonConstants.INTEGER_ZERO',
+    integer: 'CommonConstants.INTEGER_ZERO',
+    int: 'CommonConstants.INTEGER_ZERO',
+    int4: 'CommonConstants.INTEGER_ZERO',
+    smallint: 'CommonConstants.INTEGER_ZERO',
+    int2: 'CommonConstants.INTEGER_ZERO',
+    numeric: 'BigDecimal.ZERO',
+    decimal: 'BigDecimal.ZERO',
   },
 }
 

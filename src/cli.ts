@@ -8,7 +8,9 @@ import { cancel, intro, isCancel, log, outro, spinner, tasks, text } from '@clac
 import c from 'ansis'
 import minimist from 'minimist'
 import { rimrafSync } from 'rimraf'
+import { JavaAstAdapter } from './ast-adapter'
 import { PartitionJpaTransformer, SimpleJpaTransformer } from './ast-transform'
+import { getConfig } from './config'
 import { generateJavaCode } from './java-code-gen'
 import { formatJavaCode } from './java-format'
 import { parseTable } from './pgsql-parse'
@@ -172,7 +174,9 @@ async function generateEntity(parseResult: ParseResult): Promise<void> {
 }
 
 async function generateSimpleEntity(ast: CreateTableStatement): Promise<void> {
-  const simpleJpaTransformer = new SimpleJpaTransformer(ast)
+  const config = await getConfig()
+  const javaAstAdapter = new JavaAstAdapter(ast, config)
+  const simpleJpaTransformer = new SimpleJpaTransformer(javaAstAdapter)
   const javaAst = await simpleJpaTransformer.transform()
   const outputDir = paths.timestampOutputPath
   javaAstToFile(javaAst.entity, 'Entity', outputDir)
@@ -181,7 +185,9 @@ async function generateSimpleEntity(ast: CreateTableStatement): Promise<void> {
 }
 
 async function generatePartitionEntity(ast: CreateTableStatement): Promise<void> {
-  const partitionJpaTransformer = new PartitionJpaTransformer(ast)
+  const config = await getConfig()
+  const javaAstAdapter = new JavaAstAdapter(ast, config)
+  const partitionJpaTransformer = new PartitionJpaTransformer(javaAstAdapter)
   const partitionJavaAst = await partitionJpaTransformer.transform()
   const outputDir = paths.timestampOutputPath
   javaAstToFile(partitionJavaAst.entity, 'Entity', outputDir)
