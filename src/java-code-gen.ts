@@ -13,11 +13,18 @@ export const javaAstBodyNodePriority: Record<string, number> = {
   PackageDeclaration: 0,
   ImportDeclaration: 1,
   JavaDoc: 2,
+  ClassDeclaration: 3,
+  InterfaceDeclaration: 3,
+}
 
+function sortByPriority<T extends BaseNode>(a: T, b: T): number {
+  const aPriority = javaAstBodyNodePriority[a.type] ?? 100
+  const bPriority = javaAstBodyNodePriority[b.type] ?? 100
+  return aPriority - bPriority
 }
 
 export function generateJavaCode(javaAst: JavaAST): Array<string> {
-  return javaAst.body.sort().map(generateNode).flat()
+  return javaAst.body.sort(sortByPriority).map(generateNode).flat()
 }
 
 export function generateJavaDoc(javaDoc: JavaDoc): Array<string> {
