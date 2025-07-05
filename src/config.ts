@@ -84,11 +84,11 @@ const defaultConfig: Config = {
     'character': 'String',
     'char': 'String',
     'text': 'String',
-    'json': 'String',
     'boolean': 'Boolean',
     'bool': 'Boolean',
     'bytea': 'byte[]',
     'jsonb': 'String',
+    'json': 'String',
     'bpchar': 'String',
   },
   dataImportMap: {
@@ -100,6 +100,7 @@ const defaultConfig: Config = {
     timetz: 'java.time.LocalTime',
     date: 'java.time.LocalDate',
     jsonb: ['org.hibernate.annotations.Type', 'com.ymsl.solid.jpa.usertype.StringJsonUserType'],
+    json: ['org.hibernate.annotations.Type', 'com.ymsl.solid.jpa.usertype.StringJsonUserType'],
   },
   defaultVOImportMap: {
     integer: 'com.a1stream.common.constants.CommonConstants',

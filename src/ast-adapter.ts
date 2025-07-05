@@ -206,8 +206,8 @@ export class JavaAstAdapter {
           columnAstMetaBuilder.columnDefScale(dataType.config[1])
         }
 
-        if (dataType.name === 'jsonb') {
-          columnAstMetaBuilder.columnDefColumnDefinition('jsonb')
+        if (dataType.name === 'jsonb' || dataType.name === 'json') {
+          columnAstMetaBuilder.columnDefColumnDefinition(dataType.name)
         }
 
         tableAstMetaBuilder.column(columnAstMetaBuilder.build())

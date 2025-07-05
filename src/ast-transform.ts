@@ -103,7 +103,7 @@ export class PartitionJpaTransformer {
     meta.columns.forEach((column) => {
       const fieldDeclarationBuilder = FieldDeclarationBuilder.create(['private'], column.fieldName, createTypeDeclaration(column.fieldType))
 
-      if (column.columnType === 'jsonb') {
+      if (isJsonType(column.columnType)) {
         fieldDeclarationBuilder.addAnnotation('Type', { value: createTypeDeclaration('StringJsonUserType') })
       }
       if (column.isPrimaryKey) {
@@ -319,7 +319,7 @@ export class SimpleJpaTransformer {
     meta.columns.forEach((column) => {
       const fieldDeclarationBuilder = FieldDeclarationBuilder.create(['private'], column.fieldName, createTypeDeclaration(column.fieldType))
 
-      if (column.columnType === 'jsonb') {
+      if (isJsonType(column.columnType)) {
         fieldDeclarationBuilder.addAnnotation('Type', { value: createTypeDeclaration('StringJsonUserType') })
       }
       if (column.isPrimaryKey) {
@@ -464,4 +464,8 @@ function createBuilderWithId(keyName: string, primaryKey: string): MethodDeclara
   return MethodDeclarationBuilder.create(['public', 'static'], 'builderWithId', createTypeDeclaration(`${keyName}Builder`))
     .addExpressions([createExpression(`return ${keyName}.builder().${primaryKey}(IdUtils.getSnowflakeIdWorker().nextId());`)])
     .build()
+}
+
+function isJsonType(columnType: string): boolean {
+  return columnType === 'jsonb' || columnType === 'json'
 }
