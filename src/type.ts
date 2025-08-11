@@ -234,6 +234,5 @@ export interface EntityMeta {
     package: string
   }
   entityName: string
-  entityKeyName: string
   columns: Array<EntityFieldMeta>
 }

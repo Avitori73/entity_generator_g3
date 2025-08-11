@@ -22,14 +22,25 @@ const paths = {
 
 const errorStack: Array<string> = []
 
-export async function runJavaCli(): Promise<void> {
+export interface RunJavaCliOptions {
+  file?: string
+}
+
+export async function runJavaCli(options: RunJavaCliOptions = {}): Promise<void> {
   console.log('\n')
   intro(c.cyan(`Entity Generator For G3 Start`))
 
   // 直接使用 -f 或 --file 参数来指定文件名
   let filename
   const args = minimist(process.argv.slice(2))
-  if (args.f || args.file) {
+  if (options.file) {
+    filename = options.file
+    if (!fs.existsSync(filename)) {
+      log.error(c.red(`File not found: ${filename}`))
+      process.exit(1)
+    }
+  }
+  else if (args.f || args.file) {
     filename = args.f || args.file
     if (!fs.existsSync(filename)) {
       log.error(c.red(`File not found: ${filename}`))
@@ -191,7 +202,6 @@ async function generatePartitionEntity(ast: CreateTableStatement): Promise<void>
   const partitionJavaAst = await partitionJpaTransformer.transform()
   const outputDir = paths.timestampOutputPath
   javaAstToFile(partitionJavaAst.entity, 'Entity', outputDir)
-  javaAstToFile(partitionJavaAst.entityKey, 'EntityKey', outputDir)
   javaAstToFile(partitionJavaAst.repository, 'Repository', outputDir)
   javaAstToFile(partitionJavaAst.vo, 'VO', outputDir)
 }

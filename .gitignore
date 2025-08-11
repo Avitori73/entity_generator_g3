@@ -11,3 +11,8 @@ node_modules
 temp
 output
 create.sql
+
+# Vitest
+vitest-results.json
+vitest-results.xml
+.vitest

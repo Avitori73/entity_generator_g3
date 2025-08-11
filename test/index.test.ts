@@ -1,14 +1,17 @@
-import { describe, expect, it } from 'vitest'
-import { init } from '../src'
+import { describe, it } from 'vitest'
+import { runJavaCli } from '../src'
 
-describe('function', () => {
-  it('should be work', async () => {
-    expect(1 + 1).toBe(2)
+const consumerInfoTestCase = 'test/consumer_info.test.sql'
+const colorInfoTestCase = 'test/color_info.test.sql'
+
+describe('test cli for consumer_info', () => {
+  it('consumer info test', async () => {
+    await runJavaCli({ file: consumerInfoTestCase })
   })
 })
 
-describe('config', () => {
-  it('should be work', async () => {
-    init()
+describe('test cli for color_info', () => {
+  it('color info test', async () => {
+    await runJavaCli({ file: colorInfoTestCase })
   })
 })

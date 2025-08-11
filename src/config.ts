@@ -39,8 +39,8 @@ const defaultConfig: Config = {
   partitionRepositoryPackage: 'com.a1stream.domain.repository.partition',
   repositoryPackage: 'com.a1stream.domain.repository',
   repositorySuperClazz: {
-    name: 'JpaExtensionRepository',
-    package: 'com.ymsl.solid.jpa.repository.JpaExtensionRepository',
+    name: 'ExtensionRepository',
+    package: 'com.a1stream.common.jpa.repository.ExtensionRepository',
   },
 
   // vo

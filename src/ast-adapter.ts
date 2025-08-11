@@ -131,8 +131,6 @@ export class JavaAstAdapter {
 
     const entityName = pascalCase(this.tableAstMeta.tablename)
 
-    const entityKeyName = `${entityName}Key`
-
     const convertToEntityFieldMeta = (column: ColumnAstMeta): EntityFieldMeta => {
       return {
         isPrimaryKey: this.tableAstMeta.primaryKeys.includes(column.columnName),
@@ -159,7 +157,6 @@ export class JavaAstAdapter {
       entitySuperClass,
       entityVOSuperClass,
       entityName,
-      entityKeyName,
       columns,
     }
     return meta
