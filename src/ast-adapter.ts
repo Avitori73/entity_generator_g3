@@ -121,6 +121,8 @@ export class JavaAstAdapter {
       ? config.partitionRepositoryPackage
       : config.repositoryPackage
 
+    const repositorySuperClass = config.repositorySuperClazz
+
     const entityVOPackage = this.isPartitioned
       ? config.partitionVoPackage
       : config.voPackage
@@ -153,6 +155,7 @@ export class JavaAstAdapter {
       primaryKeys: this.tableAstMeta.primaryKeys.map(pk => camelCase(pk)),
       entityPackage,
       entityRepositoryPackage,
+      repositorySuperClass,
       entityVOPackage,
       entitySuperClass,
       entityVOSuperClass,

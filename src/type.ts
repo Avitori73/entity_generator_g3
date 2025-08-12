@@ -224,6 +224,10 @@ export interface EntityMeta {
   primaryKeys: Array<string>
   entityPackage: string
   entityRepositoryPackage: string
+  repositorySuperClass: {
+    name: string
+    package: string
+  }
   entityVOPackage: string
   entitySuperClass: {
     name: string

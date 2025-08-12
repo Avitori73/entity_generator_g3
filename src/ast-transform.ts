@@ -26,7 +26,6 @@ export const BASE_ENTITY_KEY_IMPORTS = [
 ]
 
 export const BASE_ENTITY_REPOSITORY_IMPORTS = [
-  'com.ymsl.solid.jpa.repository.JpaExtensionRepository',
   'org.springframework.stereotype.Repository',
 ]
 
@@ -158,12 +157,13 @@ export class PartitionJpaTransformer {
       .addImports([
         `${meta.entityPackage}.${meta.entityName}`,
         ...BASE_ENTITY_REPOSITORY_IMPORTS,
+        meta.repositorySuperClass.package,
       ])
       .setJavaDoc(BASE_ENTITY_JAVADOC)
 
     const interfaceDeclaration = InterfaceDeclarationBuilder.create(['public'], `${meta.entityName}Repository`)
       .addAnnotation('Repository')
-      .addExtend('JpaExtensionRepository', [createTypeDeclaration(meta.entityName), createTypeDeclaration(primaryKey.fieldType)])
+      .addExtend(meta.repositorySuperClass.name, [createTypeDeclaration(meta.entityName), createTypeDeclaration(primaryKey.fieldType)])
       .build()
 
     javaAstBuilder.setInterfaceDeclaration(interfaceDeclaration)
@@ -326,12 +326,13 @@ export class SimpleJpaTransformer {
       .addImports([
         `${meta.entityPackage}.${meta.entityName}`,
         ...BASE_ENTITY_REPOSITORY_IMPORTS,
+        meta.repositorySuperClass.package,
       ])
       .setJavaDoc(BASE_ENTITY_JAVADOC)
 
     const interfaceDeclaration = InterfaceDeclarationBuilder.create(['public'], `${meta.entityName}Repository`)
       .addAnnotation('Repository')
-      .addExtend('JpaExtensionRepository', [createTypeDeclaration(meta.entityName), createTypeDeclaration(primaryKey.fieldType)])
+      .addExtend(meta.repositorySuperClass.name, [createTypeDeclaration(meta.entityName), createTypeDeclaration(primaryKey.fieldType)])
       .build()
 
     javaAstBuilder.setInterfaceDeclaration(interfaceDeclaration)
