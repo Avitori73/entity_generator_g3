@@ -210,23 +210,17 @@ export class PartitionJpaTransformer {
     })
 
     if (primaryKey.fieldType === 'Long') {
-      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName))
-      classDeclarationBuilder.addMethod(this.createBuilderWithDefault(entityVOName, primaryKey.fieldName))
+      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName, true))
+      classDeclarationBuilder.addMethod(createBuilderWithDefault(entityVOName, primaryKey.fieldName, true))
+    }
+    else if (primaryKey.fieldType === 'String') {
+      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName, false))
+      classDeclarationBuilder.addMethod(createBuilderWithDefault(entityVOName, primaryKey.fieldName, false))
     }
 
     javaAstBuilder.setClassDeclaration(classDeclarationBuilder.build())
 
     return javaAstBuilder.build()
-  }
-
-  private createBuilderWithDefault(keyName: string, primaryKey: string): MethodDeclaration {
-    return MethodDeclarationBuilder.create(['public', 'static'], 'builderWithDefault', createTypeDeclaration(`${keyName}Builder`))
-      .addExpressions([
-        createExpression(`return ${keyName}.builder()`),
-        createExpression(`    .${primaryKey}(IdUtils.getSnowflakeIdWorker().nextId())`),
-        createExpression(`    .dealerPartition(UserDetailsUtil.getDealerPartition());`),
-      ])
-      .build()
   }
 }
 
@@ -379,7 +373,10 @@ export class SimpleJpaTransformer {
     })
 
     if (primaryKey.fieldType === 'Long') {
-      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName))
+      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName, true))
+    }
+    else if (primaryKey.fieldType === 'String') {
+      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName, false))
     }
 
     javaAstBuilder.setClassDeclaration(classDeclarationBuilder.build())
@@ -417,9 +414,19 @@ function createMarkAsNotNewMethod(): MethodDeclaration {
     .build()
 }
 
-function createBuilderWithId(keyName: string, primaryKey: string): MethodDeclaration {
+function createBuilderWithDefault(keyName: string, primaryKey: string, isLong: boolean): MethodDeclaration {
+  return MethodDeclarationBuilder.create(['public', 'static'], 'builderWithDefault', createTypeDeclaration(`${keyName}Builder`))
+    .addExpressions([
+      createExpression(`return ${keyName}.builder()`),
+      createExpression(`    .${primaryKey}(IdUtils.getSnowflakeIdWorker().${isLong ? 'nextId' : 'nextIdStr'}())`),
+      createExpression(`    .dealerPartition(UserDetailsUtil.getDealerPartition());`),
+    ])
+    .build()
+}
+
+function createBuilderWithId(keyName: string, primaryKey: string, isLong: boolean): MethodDeclaration {
   return MethodDeclarationBuilder.create(['public', 'static'], 'builderWithId', createTypeDeclaration(`${keyName}Builder`))
-    .addExpressions([createExpression(`return ${keyName}.builder().${primaryKey}(IdUtils.getSnowflakeIdWorker().nextId());`)])
+    .addExpressions([createExpression(`return ${keyName}.builder().${primaryKey}(IdUtils.getSnowflakeIdWorker().${isLong ? 'nextId' : 'nextIdStr'}());`)])
     .build()
 }
 
