@@ -198,6 +198,7 @@ export interface ColumnAstMeta {
   columnName: string
   columnType: string
   columnDef: ColumnDef
+  columnDefaultValue?: string
 }
 
 export interface ColumnDef {

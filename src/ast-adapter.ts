@@ -46,6 +46,7 @@ class ColumnAstMetaBuilder {
       nullable: false,
       columnDefinition: undefined,
     },
+    columnDefaultValue: undefined,
   }
 
   public static create(): ColumnAstMetaBuilder {
@@ -89,6 +90,11 @@ class ColumnAstMetaBuilder {
 
   public columnDefColumnDefinition(columnDefinition: string): ColumnAstMetaBuilder {
     this.columnAstMeta.columnDef.columnDefinition = columnDefinition
+    return this
+  }
+
+  public columnDefaultValue(defaultValue: string): ColumnAstMetaBuilder {
+    this.columnAstMeta.columnDefaultValue = defaultValue
     return this
   }
 
@@ -196,6 +202,11 @@ export class JavaAstAdapter {
           .dataType((column.dataType as BasicDataTypeDef).name)
           .columnDefName(column.name.name)
           .columnDefNullable(constraints.some(c => c.type === 'null') ?? false)
+
+        const defaultConstraint = constraints.find(c => c.type === 'default')
+        if (defaultConstraint) {
+          // TODO： handle more complex default expressions
+        }
 
         if (LENGTH_REQUIRED.includes(dataType.name) && dataType.config?.[0]) {
           columnAstMetaBuilder.columnDefLength(dataType.config?.[0])
