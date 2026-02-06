@@ -1,6 +1,14 @@
 import type { JavaAstAdapter } from './ast-adapter'
 import type { FieldDeclaration, JavaAST, MethodDeclaration } from './type'
-import { ClassDeclarationBuilder, createExpression, createTypeDeclaration, FieldDeclarationBuilder, InterfaceDeclarationBuilder, JavaAstBuilder, MethodDeclarationBuilder } from './ast-builder'
+import {
+  ClassDeclarationBuilder,
+  createExpression,
+  createTypeDeclaration,
+  FieldDeclarationBuilder,
+  InterfaceDeclarationBuilder,
+  JavaAstBuilder,
+  MethodDeclarationBuilder
+} from './ast-builder'
 
 export const BASE_ENTITY_IMPORTS = [
   'jakarta.persistence.Column',
@@ -12,7 +20,7 @@ export const BASE_ENTITY_IMPORTS = [
   'jakarta.persistence.Transient',
   'lombok.Getter',
   'lombok.Setter',
-  'org.springframework.data.domain.Persistable',
+  'org.springframework.data.domain.Persistable'
 ]
 
 export const SNOWFLAKE_IMPORT = 'com.ymsl.solid.jpa.uuid.annotation.SnowflakeGenerator'
@@ -22,12 +30,10 @@ export const BASE_ENTITY_KEY_IMPORTS = [
   'java.io.Serializable',
   'lombok.AllArgsConstructor',
   'lombok.Data',
-  'lombok.NoArgsConstructor',
+  'lombok.NoArgsConstructor'
 ]
 
-export const BASE_ENTITY_REPOSITORY_IMPORTS = [
-  'org.springframework.stereotype.Repository',
-]
+export const BASE_ENTITY_REPOSITORY_IMPORTS = ['org.springframework.stereotype.Repository']
 
 export const BASE_ENTITY_VO_IMPORTS = [
   'com.ymsl.solid.base.util.IdUtils',
@@ -35,16 +41,12 @@ export const BASE_ENTITY_VO_IMPORTS = [
   'lombok.Builder',
   'lombok.Data',
   'lombok.EqualsAndHashCode',
-  'lombok.NoArgsConstructor',
+  'lombok.NoArgsConstructor'
 ]
 
-export const BASE_PARTITION_ENTITY_VO_IMPORTS = [
-  'com.a1stream.common.utils.UserDetailsUtil',
-]
+export const BASE_PARTITION_ENTITY_VO_IMPORTS = ['com.a1stream.common.utils.UserDetailsUtil']
 
-export const BASE_ENTITY_JAVADOC = [
-  `@author Entity Generator G3`,
-]
+export const BASE_ENTITY_JAVADOC = [`@author Entity Generator G3`]
 
 export interface SimpleJpaUnit {
   entity: JavaAST
@@ -72,14 +74,14 @@ export class PartitionJpaTransformer {
     return {
       entity: entityAST,
       repository: repositoryAST,
-      vo: voAST,
+      vo: voAST
     }
   }
 
   private transformToEntityAST(): JavaAST {
     const meta = this.adapter.getEntityMeta()
 
-    const primaryKeys = meta.columns.filter(key => key.isPrimaryKey && !key.isPartitionKey)
+    const primaryKeys = meta.columns.filter((key) => key.isPrimaryKey && !key.isPartitionKey)
     if (primaryKeys.length === 0) {
       throw new Error(`No primary key found for entity ${meta.entityName}`)
     }
@@ -87,10 +89,7 @@ export class PartitionJpaTransformer {
 
     const javaAstBuilder = JavaAstBuilder.create()
       .setPackageDeclaration(meta.entityPackage)
-      .addImports([
-        ...BASE_ENTITY_IMPORTS,
-        meta.entitySuperClass.package,
-      ])
+      .addImports([...BASE_ENTITY_IMPORTS, meta.entitySuperClass.package])
       .setJavaDoc(BASE_ENTITY_JAVADOC)
 
     const classDeclarationBuilder = ClassDeclarationBuilder.create(['public'], meta.entityName)
@@ -104,10 +103,16 @@ export class PartitionJpaTransformer {
     classDeclarationBuilder.addField(createSerialVersionUID())
 
     meta.columns.forEach((column) => {
-      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(['private'], column.fieldName, createTypeDeclaration(column.fieldType))
+      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(
+        ['private'],
+        column.fieldName,
+        createTypeDeclaration(column.fieldType)
+      )
 
       if (isJsonType(column.columnType)) {
-        fieldDeclarationBuilder.addAnnotation('Type', { value: createTypeDeclaration('StringJsonUserType') })
+        fieldDeclarationBuilder.addAnnotation('Type', {
+          value: createTypeDeclaration('StringJsonUserType')
+        })
       }
       if (column.isPrimaryKey && !column.isPartitionKey) {
         fieldDeclarationBuilder.addAnnotation('Id')
@@ -122,12 +127,14 @@ export class PartitionJpaTransformer {
 
       if (column.imports) {
         const imports = Array.isArray(column.imports) ? column.imports : [column.imports]
-        imports.forEach(importPath => javaAstBuilder.addImport(importPath))
+        imports.forEach((importPath) => javaAstBuilder.addImport(importPath))
       }
     })
 
     classDeclarationBuilder.addField(createIsNew())
-    classDeclarationBuilder.addMethod(this.createGetIdMethod(primaryKey.fieldName, primaryKey.fieldType))
+    classDeclarationBuilder.addMethod(
+      this.createGetIdMethod(primaryKey.fieldName, primaryKey.fieldType)
+    )
     classDeclarationBuilder.addMethod(createIsNewMethod())
     classDeclarationBuilder.addMethod(createMarkAsNotNewMethod())
 
@@ -146,7 +153,7 @@ export class PartitionJpaTransformer {
   private transformToRepositoryAST(): JavaAST {
     const meta = this.adapter.getEntityMeta()
 
-    const primaryKeys = meta.columns.filter(key => key.isPrimaryKey && !key.isPartitionKey)
+    const primaryKeys = meta.columns.filter((key) => key.isPrimaryKey && !key.isPartitionKey)
     if (primaryKeys.length === 0) {
       throw new Error(`No primary key found for entity ${meta.entityName}`)
     }
@@ -157,13 +164,19 @@ export class PartitionJpaTransformer {
       .addImports([
         `${meta.entityPackage}.${meta.entityName}`,
         ...BASE_ENTITY_REPOSITORY_IMPORTS,
-        meta.repositorySuperClass.package,
+        meta.repositorySuperClass.package
       ])
       .setJavaDoc(BASE_ENTITY_JAVADOC)
 
-    const interfaceDeclaration = InterfaceDeclarationBuilder.create(['public'], `${meta.entityName}Repository`)
+    const interfaceDeclaration = InterfaceDeclarationBuilder.create(
+      ['public'],
+      `${meta.entityName}Repository`
+    )
       .addAnnotation('Repository')
-      .addExtend(meta.repositorySuperClass.name, [createTypeDeclaration(meta.entityName), createTypeDeclaration(primaryKey.fieldType)])
+      .addExtend(meta.repositorySuperClass.name, [
+        createTypeDeclaration(meta.entityName),
+        createTypeDeclaration(primaryKey.fieldType)
+      ])
       .build()
 
     javaAstBuilder.setInterfaceDeclaration(interfaceDeclaration)
@@ -174,7 +187,7 @@ export class PartitionJpaTransformer {
   private transformToVOAST(): JavaAST {
     const meta = this.adapter.getEntityMeta()
 
-    const primaryKeys = meta.columns.filter(key => key.isPrimaryKey && !key.isPartitionKey)
+    const primaryKeys = meta.columns.filter((key) => key.isPrimaryKey && !key.isPartitionKey)
     if (primaryKeys.length === 0) {
       throw new Error(`No primary key found for entity ${meta.entityName}`)
     }
@@ -182,7 +195,11 @@ export class PartitionJpaTransformer {
 
     const javaAstBuilder = JavaAstBuilder.create()
       .setPackageDeclaration(meta.entityVOPackage)
-      .addImports([...BASE_ENTITY_VO_IMPORTS, ...BASE_PARTITION_ENTITY_VO_IMPORTS, meta.entityVOSuperClass.package])
+      .addImports([
+        ...BASE_ENTITY_VO_IMPORTS,
+        ...BASE_PARTITION_ENTITY_VO_IMPORTS,
+        meta.entityVOSuperClass.package
+      ])
       .setJavaDoc(BASE_ENTITY_JAVADOC)
 
     const entityVOName = `${meta.entityName}VO`
@@ -197,7 +214,11 @@ export class PartitionJpaTransformer {
       .addField(createSerialVersionUID())
 
     meta.columns.forEach((column) => {
-      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(['private'], column.fieldName, createTypeDeclaration(column.fieldType))
+      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(
+        ['private'],
+        column.fieldName,
+        createTypeDeclaration(column.fieldType)
+      )
       if (column.defaultValue) {
         fieldDeclarationBuilder.setValue(createExpression(column.defaultValue))
         fieldDeclarationBuilder.addAnnotation('Builder.Default')
@@ -210,12 +231,19 @@ export class PartitionJpaTransformer {
     })
 
     if (primaryKey.fieldType === 'Long') {
-      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName, true))
-      classDeclarationBuilder.addMethod(createBuilderWithDefault(entityVOName, primaryKey.fieldName, true))
-    }
-    else if (primaryKey.fieldType === 'String') {
-      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName, false))
-      classDeclarationBuilder.addMethod(createBuilderWithDefault(entityVOName, primaryKey.fieldName, false))
+      classDeclarationBuilder.addMethod(
+        createBuilderWithId(entityVOName, primaryKey.fieldName, true)
+      )
+      classDeclarationBuilder.addMethod(
+        createBuilderWithDefault(entityVOName, primaryKey.fieldName, true)
+      )
+    } else if (primaryKey.fieldType === 'String') {
+      classDeclarationBuilder.addMethod(
+        createBuilderWithId(entityVOName, primaryKey.fieldName, false)
+      )
+      classDeclarationBuilder.addMethod(
+        createBuilderWithDefault(entityVOName, primaryKey.fieldName, false)
+      )
     }
 
     javaAstBuilder.setClassDeclaration(classDeclarationBuilder.build())
@@ -238,14 +266,14 @@ export class SimpleJpaTransformer {
     return {
       entity: entityAST,
       repository: repositoryAST,
-      vo: voAST,
+      vo: voAST
     }
   }
 
   private transformToEntityAST(): JavaAST {
     const meta = this.adapter.getEntityMeta()
 
-    const primaryKeys = meta.columns.filter(key => key.isPrimaryKey && !key.isPartitionKey)
+    const primaryKeys = meta.columns.filter((key) => key.isPrimaryKey && !key.isPartitionKey)
     if (primaryKeys.length === 0) {
       throw new Error(`No primary key found for entity ${meta.entityName}`)
     }
@@ -267,10 +295,16 @@ export class SimpleJpaTransformer {
     classDeclarationBuilder.addField(createSerialVersionUID())
 
     meta.columns.forEach((column) => {
-      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(['private'], column.fieldName, createTypeDeclaration(column.fieldType))
+      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(
+        ['private'],
+        column.fieldName,
+        createTypeDeclaration(column.fieldType)
+      )
 
       if (isJsonType(column.columnType)) {
-        fieldDeclarationBuilder.addAnnotation('Type', { value: createTypeDeclaration('StringJsonUserType') })
+        fieldDeclarationBuilder.addAnnotation('Type', {
+          value: createTypeDeclaration('StringJsonUserType')
+        })
       }
       if (column.isPrimaryKey) {
         fieldDeclarationBuilder.addAnnotation('Id')
@@ -285,12 +319,14 @@ export class SimpleJpaTransformer {
 
       if (column.imports) {
         const imports = Array.isArray(column.imports) ? column.imports : [column.imports]
-        imports.forEach(importPath => javaAstBuilder.addImport(importPath))
+        imports.forEach((importPath) => javaAstBuilder.addImport(importPath))
       }
     })
 
     classDeclarationBuilder.addField(createIsNew())
-    classDeclarationBuilder.addMethod(this.createGetIdMethod(primaryKey.fieldName, primaryKey.fieldType))
+    classDeclarationBuilder.addMethod(
+      this.createGetIdMethod(primaryKey.fieldName, primaryKey.fieldType)
+    )
     classDeclarationBuilder.addMethod(createIsNewMethod())
     classDeclarationBuilder.addMethod(createMarkAsNotNewMethod())
 
@@ -309,7 +345,7 @@ export class SimpleJpaTransformer {
   private transformToRepositoryAST(): JavaAST {
     const meta = this.adapter.getEntityMeta()
 
-    const primaryKeys = meta.columns.filter(key => key.isPrimaryKey && !key.isPartitionKey)
+    const primaryKeys = meta.columns.filter((key) => key.isPrimaryKey && !key.isPartitionKey)
     if (primaryKeys.length === 0) {
       throw new Error(`No primary key found for entity ${meta.entityName}`)
     }
@@ -320,13 +356,19 @@ export class SimpleJpaTransformer {
       .addImports([
         `${meta.entityPackage}.${meta.entityName}`,
         ...BASE_ENTITY_REPOSITORY_IMPORTS,
-        meta.repositorySuperClass.package,
+        meta.repositorySuperClass.package
       ])
       .setJavaDoc(BASE_ENTITY_JAVADOC)
 
-    const interfaceDeclaration = InterfaceDeclarationBuilder.create(['public'], `${meta.entityName}Repository`)
+    const interfaceDeclaration = InterfaceDeclarationBuilder.create(
+      ['public'],
+      `${meta.entityName}Repository`
+    )
       .addAnnotation('Repository')
-      .addExtend(meta.repositorySuperClass.name, [createTypeDeclaration(meta.entityName), createTypeDeclaration(primaryKey.fieldType)])
+      .addExtend(meta.repositorySuperClass.name, [
+        createTypeDeclaration(meta.entityName),
+        createTypeDeclaration(primaryKey.fieldType)
+      ])
       .build()
 
     javaAstBuilder.setInterfaceDeclaration(interfaceDeclaration)
@@ -337,7 +379,7 @@ export class SimpleJpaTransformer {
   private transformToVOAST(): JavaAST {
     const meta = this.adapter.getEntityMeta()
 
-    const primaryKeys = meta.columns.filter(key => key.isPrimaryKey && !key.isPartitionKey)
+    const primaryKeys = meta.columns.filter((key) => key.isPrimaryKey && !key.isPartitionKey)
     if (primaryKeys.length === 0) {
       throw new Error(`No primary key found for entity ${meta.entityName}`)
     }
@@ -360,7 +402,11 @@ export class SimpleJpaTransformer {
       .addField(createSerialVersionUID())
 
     meta.columns.forEach((column) => {
-      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(['private'], column.fieldName, createTypeDeclaration(column.fieldType))
+      const fieldDeclarationBuilder = FieldDeclarationBuilder.create(
+        ['private'],
+        column.fieldName,
+        createTypeDeclaration(column.fieldType)
+      )
       if (column.defaultValue) {
         fieldDeclarationBuilder.setValue(createExpression(column.defaultValue))
         fieldDeclarationBuilder.addAnnotation('Builder.Default')
@@ -373,10 +419,13 @@ export class SimpleJpaTransformer {
     })
 
     if (primaryKey.fieldType === 'Long') {
-      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName, true))
-    }
-    else if (primaryKey.fieldType === 'String') {
-      classDeclarationBuilder.addMethod(createBuilderWithId(entityVOName, primaryKey.fieldName, false))
+      classDeclarationBuilder.addMethod(
+        createBuilderWithId(entityVOName, primaryKey.fieldName, true)
+      )
+    } else if (primaryKey.fieldType === 'String') {
+      classDeclarationBuilder.addMethod(
+        createBuilderWithId(entityVOName, primaryKey.fieldName, false)
+      )
     }
 
     javaAstBuilder.setClassDeclaration(classDeclarationBuilder.build())
@@ -387,7 +436,11 @@ export class SimpleJpaTransformer {
 
 // common utility functions for creating fields and methods
 function createSerialVersionUID(): FieldDeclaration {
-  return FieldDeclarationBuilder.create(['private', 'static', 'final'], 'serialVersionUID', createTypeDeclaration('long'))
+  return FieldDeclarationBuilder.create(
+    ['private', 'static', 'final'],
+    'serialVersionUID',
+    createTypeDeclaration('long')
+  )
     .setValue(createExpression('1L'))
     .build()
 }
@@ -414,19 +467,41 @@ function createMarkAsNotNewMethod(): MethodDeclaration {
     .build()
 }
 
-function createBuilderWithDefault(keyName: string, primaryKey: string, isLong: boolean): MethodDeclaration {
-  return MethodDeclarationBuilder.create(['public', 'static'], 'builderWithDefault', createTypeDeclaration(`${keyName}Builder`))
+function createBuilderWithDefault(
+  keyName: string,
+  primaryKey: string,
+  isLong: boolean
+): MethodDeclaration {
+  return MethodDeclarationBuilder.create(
+    ['public', 'static'],
+    'builderWithDefault',
+    createTypeDeclaration(`${keyName}Builder`)
+  )
     .addExpressions([
       createExpression(`return ${keyName}.builder()`),
-      createExpression(`    .${primaryKey}(IdUtils.getSnowflakeIdWorker().${isLong ? 'nextId' : 'nextIdStr'}())`),
-      createExpression(`    .dealerPartition(UserDetailsUtil.getDealerPartition());`),
+      createExpression(
+        `    .${primaryKey}(IdUtils.getSnowflakeIdWorker().${isLong ? 'nextId' : 'nextIdStr'}())`
+      ),
+      createExpression(`    .dealerPartition(UserDetailsUtil.getDealerPartition());`)
     ])
     .build()
 }
 
-function createBuilderWithId(keyName: string, primaryKey: string, isLong: boolean): MethodDeclaration {
-  return MethodDeclarationBuilder.create(['public', 'static'], 'builderWithId', createTypeDeclaration(`${keyName}Builder`))
-    .addExpressions([createExpression(`return ${keyName}.builder().${primaryKey}(IdUtils.getSnowflakeIdWorker().${isLong ? 'nextId' : 'nextIdStr'}());`)])
+function createBuilderWithId(
+  keyName: string,
+  primaryKey: string,
+  isLong: boolean
+): MethodDeclaration {
+  return MethodDeclarationBuilder.create(
+    ['public', 'static'],
+    'builderWithId',
+    createTypeDeclaration(`${keyName}Builder`)
+  )
+    .addExpressions([
+      createExpression(
+        `return ${keyName}.builder().${primaryKey}(IdUtils.getSnowflakeIdWorker().${isLong ? 'nextId' : 'nextIdStr'}());`
+      )
+    ])
     .build()
 }
 

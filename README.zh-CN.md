@@ -11,11 +11,13 @@
 1. 克隆此仓库到本地
 2. 进入仓库目录
 3. 执行以下命令
+
 ```shell
 $ pnpm install
 $ pnpm run build
 $ npm install -g .
 ```
+
 4. 安装完成后，即可全局使用 `entity_generator_g3` 命令 `egg`
 
 ## 使用说明
@@ -24,9 +26,11 @@ $ npm install -g .
 2. 在 `create.sql` 文件中存放建表语句
 3. 在文件夹中右键选择在终端中打开
 4. 执行以下命令
+
 ```shell
 $ egg
 ```
+
 5. 按照提示输入建表语句文件名，默认为 `create.sql`，按回车键即可
 
 ## License

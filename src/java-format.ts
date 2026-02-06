@@ -7,7 +7,7 @@ const javaPlugin = javaPluginPath.default
 
 const defaultOption = {
   plugins: [javaPlugin],
-  parser: 'java',
+  parser: 'java'
 }
 
 export async function getOptions(): Promise<PrettierOptions> {
@@ -15,7 +15,7 @@ export async function getOptions(): Promise<PrettierOptions> {
   const prettierOptions = config.prettierOptions || {}
   return {
     ...prettierOptions,
-    ...defaultOption,
+    ...defaultOption
   }
 }
 

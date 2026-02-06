@@ -1,28 +1,16 @@
 {
   "name": "entity_generator_g3",
-  "type": "module",
   "version": "0.17.1",
-  "packageManager": "pnpm@10.28.2",
   "description": "It is an entity generator for G3 Framework.",
-  "author": "Zhang Junrong <http:https://github.com/Avitori73>",
-  "license": "MIT",
+  "keywords": [],
   "homepage": "https://github.com/Avitori73/entity_generator_g3#readme",
+  "bugs": "https://github.com/Avitori73/entity_generator_g3/issues",
+  "license": "MIT",
+  "author": "Zhang Junrong <http:https://github.com/Avitori73>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Avitori73/entity_generator_g3.git"
   },
-  "bugs": "https://github.com/Avitori73/entity_generator_g3/issues",
-  "keywords": [],
-  "sideEffects": false,
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
-    }
-  },
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
   "bin": {
     "egg": "bin/egg.mjs"
   },
@@ -30,10 +18,24 @@
     "bin",
     "dist"
   ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
   "scripts": {
     "build": "unbuild",
     "dev": "unbuild --stub",
-    "lint": "eslint .",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "prepublishOnly": "nr build",
     "release": "bumpp",
     "publish": "pnpm publish",
@@ -43,22 +45,20 @@
     "prepare": "simple-git-hooks"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^7.2.0",
     "@antfu/ni": "^28.2.0",
     "@antfu/utils": "^9.3.0",
     "@clack/prompts": "^1.0.0",
     "@types/ini": "^4.1.1",
-    "@types/lodash-es": "^4.17.12",
     "@types/minimist": "^1.2.5",
     "@types/node": "^25.2.1",
     "ansis": "^4.2.0",
     "bumpp": "^10.4.1",
     "change-case": "^5.4.4",
-    "eslint": "^9.39.2",
     "ini": "^6.0.0",
     "lint-staged": "^16.2.7",
-    "lodash-es": "^4.17.23",
     "minimist": "^1.2.8",
+    "oxfmt": "^0.28.0",
+    "oxlint": "^1.43.0",
     "pgsql-ast-parser": "^12.0.2",
     "pnpm": "^10.28.2",
     "prettier": "^3.8.1",
@@ -76,6 +76,7 @@
     "pre-commit": "pnpm lint-staged"
   },
   "lint-staged": {
-    "*.{js,ts,json}": "eslint --fix"
-  }
+    "*": "oxfmt --no-error-on-unmatched-pattern"
+  },
+  "packageManager": "pnpm@10.28.2"
 }

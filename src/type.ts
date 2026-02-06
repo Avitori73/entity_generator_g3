@@ -56,7 +56,12 @@ export interface BaseNode {
   type: string
 }
 
-export type JavaASTNode = PackageDeclaration | ImportDeclaration | JavaDoc | ClassDeclaration | InterfaceDeclaration
+export type JavaASTNode =
+  | PackageDeclaration
+  | ImportDeclaration
+  | JavaDoc
+  | ClassDeclaration
+  | InterfaceDeclaration
 
 export interface JavaAST {
   type: 'JavaAST'

@@ -9,20 +9,12 @@
       "request": "launch",
       "name": "Debug CLI",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "--import",
-        "tsx"
-      ],
+      "runtimeArgs": ["--import", "tsx"],
       "program": "${workspaceFolder}/src/commands/egg.ts",
-      "args": [
-        "-f",
-        "create.sql"
-      ],
+      "args": ["-f", "create.sql"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "skipFiles": [
-        "<node_internals>/**"
-      ]
+      "skipFiles": ["<node_internals>/**"]
     }
   ]
 }

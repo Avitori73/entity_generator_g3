@@ -1,20 +1,35 @@
-import type { Annotation, Attribute, BaseNode, BlockComment, BlockStatement, BodyDeclaration, ClassDeclaration, ConstructorDeclaration, Expression, FieldDeclaration, Identifier, ImportDeclaration, InterfaceDeclaration, JavaAST, JavaDoc, LineComment, MethodDeclaration, Modifier, PackageDeclaration, Parameter, TypeDeclaration } from './type'
+import type {
+  Annotation,
+  Attribute,
+  BaseNode,
+  BlockComment,
+  BlockStatement,
+  BodyDeclaration,
+  ClassDeclaration,
+  ConstructorDeclaration,
+  Expression,
+  FieldDeclaration,
+  Identifier,
+  ImportDeclaration,
+  InterfaceDeclaration,
+  JavaAST,
+  JavaDoc,
+  LineComment,
+  MethodDeclaration,
+  Modifier,
+  PackageDeclaration,
+  Parameter,
+  TypeDeclaration
+} from './type'
 
-export const modifierOrder = [
-  'public',
-  'protected',
-  'private',
-  'abstract',
-  'static',
-  'final',
-]
+export const modifierOrder = ['public', 'protected', 'private', 'abstract', 'static', 'final']
 
 export const javaAstBodyNodePriority: Record<string, number> = {
   PackageDeclaration: 0,
   ImportDeclaration: 1,
   JavaDoc: 2,
   ClassDeclaration: 3,
-  InterfaceDeclaration: 3,
+  InterfaceDeclaration: 3
 }
 
 function sortByPriority<T extends BaseNode>(a: T, b: T): number {
@@ -28,7 +43,7 @@ export function generateJavaCode(javaAst: JavaAST): Array<string> {
 }
 
 export function generateJavaDoc(javaDoc: JavaDoc): Array<string> {
-  return ['/**', ...javaDoc.value.map(v => ` * ${v}`), ' */']
+  return ['/**', ...javaDoc.value.map((v) => ` * ${v}`), ' */']
 }
 
 export function generateLineComment(lineComment: LineComment): string {
@@ -36,7 +51,7 @@ export function generateLineComment(lineComment: LineComment): string {
 }
 
 export function generateBlockComment(blockComment: BlockComment): Array<string> {
-  return ['/*', ...blockComment.value.map(v => ` ${v}`), ' */']
+  return ['/*', ...blockComment.value.map((v) => ` ${v}`), ' */']
 }
 
 export function generateIdentifier(identifier: Identifier): string {
@@ -48,15 +63,16 @@ export function generateExpression(expression: Expression): string {
 }
 
 export function generateAnnotation(annotation: Annotation): Array<string> {
-  return [`@${annotation.id.name}${annotation.attributes.length ? `(${annotation.attributes.map(generateAttribute).join(', ')})` : ''}`]
+  return [
+    `@${annotation.id.name}${annotation.attributes.length ? `(${annotation.attributes.map(generateAttribute).join(', ')})` : ''}`
+  ]
 }
 
 export function generateAttribute(attribute: Attribute): string {
   const attributeKey = attribute.key.name === 'value' ? '' : `${attribute.key.name} = `
   if (Array.isArray(attribute.value)) {
     return `${attributeKey}{${attribute.value.map(generateExpression).join(', ')}}`
-  }
-  else {
+  } else {
     return `${attributeKey}${generateExpression(attribute.value)}`
   }
 }
@@ -64,7 +80,7 @@ export function generateAttribute(attribute: Attribute): string {
 export function generateModifiers(modifiers: Array<Modifier>): string {
   return modifiers
     .sort((a, b) => modifierOrder.indexOf(a.name) - modifierOrder.indexOf(b.name))
-    .map(m => m.name)
+    .map((m) => m.name)
     .join(' ')
 }
 
@@ -76,28 +92,36 @@ export function generateImportDeclaration(importDeclaration: ImportDeclaration):
   return [`import ${importDeclaration.id.name};`]
 }
 
-export function generateInterfaceDeclaration(interfaceDeclaration: InterfaceDeclaration): Array<string> {
+export function generateInterfaceDeclaration(
+  interfaceDeclaration: InterfaceDeclaration
+): Array<string> {
   const annotations = interfaceDeclaration.annotations.map(generateAnnotation).flat()
   const modifiers = generateModifiers(interfaceDeclaration.modifiers)
-  const extendsInterfaces = interfaceDeclaration.extends.length ? `extends ${interfaceDeclaration.extends.map(generateTypeDeclaration).join(', ')}` : ''
+  const extendsInterfaces = interfaceDeclaration.extends.length
+    ? `extends ${interfaceDeclaration.extends.map(generateTypeDeclaration).join(', ')}`
+    : ''
   const body = generateBodyDeclaration(interfaceDeclaration.body)
   return [
     ...annotations,
     `${modifiers} interface ${interfaceDeclaration.id.name} ${extendsInterfaces}`,
-    ...body,
+    ...body
   ]
 }
 
 export function generateClassDeclaration(classDeclaration: ClassDeclaration): Array<string> {
   const annotations = classDeclaration.annotations.map(generateAnnotation).flat()
   const modifiers = generateModifiers(classDeclaration.modifiers)
-  const superClass = classDeclaration.superClass ? `extends ${generateTypeDeclaration(classDeclaration.superClass)}` : ''
-  const implementsInterfaces = classDeclaration.implements.length ? `implements ${classDeclaration.implements.map(generateTypeDeclaration).join(', ')}` : ''
+  const superClass = classDeclaration.superClass
+    ? `extends ${generateTypeDeclaration(classDeclaration.superClass)}`
+    : ''
+  const implementsInterfaces = classDeclaration.implements.length
+    ? `implements ${classDeclaration.implements.map(generateTypeDeclaration).join(', ')}`
+    : ''
   const body = generateBodyDeclaration(classDeclaration.body)
   return [
     ...annotations,
     `${modifiers} class ${classDeclaration.id.name} ${superClass} ${implementsInterfaces}`,
-    ...body,
+    ...body
   ]
 }
 
@@ -105,17 +129,15 @@ export function generateBodyDeclaration(bodyDeclaration: BodyDeclaration): Array
   return ['{', ...bodyDeclaration.body.map(generateNode).flat(), '}']
 }
 
-export function generateConstructorDeclaration(constructorDeclaration: ConstructorDeclaration): Array<string> {
+export function generateConstructorDeclaration(
+  constructorDeclaration: ConstructorDeclaration
+): Array<string> {
   const annotations = constructorDeclaration.annotations.map(generateAnnotation).flat()
   const modifiers = generateModifiers(constructorDeclaration.modifiers)
   const constructorName = constructorDeclaration.id.name
   const params = constructorDeclaration.params.map(generateParameter).join(', ')
   const body = generateBlockStatement(constructorDeclaration.body)
-  return [
-    ...annotations,
-    `${modifiers} ${constructorName}(${params})`,
-    ...body,
-  ]
+  return [...annotations, `${modifiers} ${constructorName}(${params})`, ...body]
 }
 
 export function generateMethodDeclaration(methodDeclaration: MethodDeclaration): Array<string> {
@@ -126,17 +148,9 @@ export function generateMethodDeclaration(methodDeclaration: MethodDeclaration):
   const params = methodDeclaration.params.map(generateParameter).join(', ')
   const body = methodDeclaration.body ? generateBlockStatement(methodDeclaration.body) : []
   if (body.length) {
-    return [
-      ...annotations,
-      `${modifiers} ${returnType} ${methodName}(${params})`,
-      ...body,
-    ]
-  }
-  else {
-    return [
-      ...annotations,
-      `${modifiers} ${returnType} ${methodName}(${params});`,
-    ]
+    return [...annotations, `${modifiers} ${returnType} ${methodName}(${params})`, ...body]
+  } else {
+    return [...annotations, `${modifiers} ${returnType} ${methodName}(${params});`]
   }
 }
 
@@ -156,14 +170,10 @@ export function generateFieldDeclaration(fieldDeclaration: FieldDeclaration): Ar
   if (fieldDeclaration.value) {
     return [
       ...annotations,
-      `${modifiers} ${typeDeclaration} ${fieldName} = ${generateExpression(fieldDeclaration.value)};`,
+      `${modifiers} ${typeDeclaration} ${fieldName} = ${generateExpression(fieldDeclaration.value)};`
     ]
-  }
-  else {
-    return [
-      ...annotations,
-      `${modifiers} ${typeDeclaration} ${fieldName};`,
-    ]
+  } else {
+    return [...annotations, `${modifiers} ${typeDeclaration} ${fieldName};`]
   }
 }
 

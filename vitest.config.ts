@@ -12,11 +12,11 @@ export default defineConfig({
     // Specify output directory for reports and results
     outputFile: {
       json: './vitest-results.json',
-      junit: './vitest-results.xml',
+      junit: './vitest-results.xml'
     },
     // Coverage output directory
     coverage: {
-      reportsDirectory: './coverage',
-    },
-  },
+      reportsDirectory: './coverage'
+    }
+  }
 })

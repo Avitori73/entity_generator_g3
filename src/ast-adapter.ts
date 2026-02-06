@@ -10,7 +10,7 @@ class TableAstMetaBuilder {
   private tableAstMeta: TableAstMeta = {
     tablename: '',
     primaryKeys: [] as Array<string>,
-    columns: [] as Array<ColumnAstMeta>,
+    columns: [] as Array<ColumnAstMeta>
   }
 
   public static create(): TableAstMetaBuilder {
@@ -44,8 +44,8 @@ class ColumnAstMetaBuilder {
       precision: undefined,
       scale: undefined,
       nullable: false,
-      columnDefinition: undefined,
-    },
+      columnDefinition: undefined
+    }
   }
 
   public static create(): ColumnAstMetaBuilder {
@@ -123,9 +123,7 @@ export class JavaAstAdapter {
 
     const repositorySuperClass = config.repositorySuperClazz
 
-    const entityVOPackage = this.isPartitioned
-      ? config.partitionVoPackage
-      : config.voPackage
+    const entityVOPackage = this.isPartitioned ? config.partitionVoPackage : config.voPackage
 
     const entityVOSuperClass = this.isPartitioned
       ? config.partitionVoSuperClazz
@@ -142,17 +140,17 @@ export class JavaAstAdapter {
         imports: this.config.dataImportMap[column.columnType],
         defaultValue: this.config.defaultVOValueMap[column.columnType],
         defaultVOImport: this.config.defaultVOImportMap[column.columnType],
-        ...column,
+        ...column
       }
     }
 
     const columns = this.tableAstMeta.columns
-      .filter(column => !config.omitColumns.includes(column.columnName))
+      .filter((column) => !config.omitColumns.includes(column.columnName))
       .map(convertToEntityFieldMeta)
 
     const meta: EntityMeta = {
       tablename: this.tableAstMeta.tablename,
-      primaryKeys: this.tableAstMeta.primaryKeys.map(pk => camelCase(pk)),
+      primaryKeys: this.tableAstMeta.primaryKeys.map((pk) => camelCase(pk)),
       entityPackage,
       entityRepositoryPackage,
       repositorySuperClass,
@@ -160,7 +158,7 @@ export class JavaAstAdapter {
       entitySuperClass,
       entityVOSuperClass,
       entityName,
-      columns,
+      columns
     }
     return meta
   }
@@ -175,10 +173,10 @@ export class JavaAstAdapter {
 
         table.constraints?.forEach((constraint) => {
           if (constraint.type === 'primary key') {
-            tableAstMetaBuilder.primaryKeys(constraint.columns.map(col => col.name))
+            tableAstMetaBuilder.primaryKeys(constraint.columns.map((col) => col.name))
           }
         })
-      },
+      }
     })).statement(ast)
 
     astVisitor(() => ({
@@ -195,13 +193,17 @@ export class JavaAstAdapter {
           .columnName(column.name.name)
           .dataType((column.dataType as BasicDataTypeDef).name)
           .columnDefName(column.name.name)
-          .columnDefNullable(constraints.some(c => c.type === 'null') ?? false)
+          .columnDefNullable(constraints.some((c) => c.type === 'null') ?? false)
 
         if (LENGTH_REQUIRED.includes(dataType.name) && dataType.config?.[0]) {
           columnAstMetaBuilder.columnDefLength(dataType.config?.[0])
         }
 
-        if (PRECISION_AND_SCALE_REQUIRED.includes(dataType.name) && dataType.config?.[0] && dataType.config?.[1]) {
+        if (
+          PRECISION_AND_SCALE_REQUIRED.includes(dataType.name) &&
+          dataType.config?.[0] &&
+          dataType.config?.[1]
+        ) {
           columnAstMetaBuilder.columnDefPrecision(dataType.config[0])
           columnAstMetaBuilder.columnDefScale(dataType.config[1])
         }
@@ -211,7 +213,7 @@ export class JavaAstAdapter {
         }
 
         tableAstMetaBuilder.column(columnAstMetaBuilder.build())
-      },
+      }
     })).statement(ast)
 
     return tableAstMetaBuilder.build()

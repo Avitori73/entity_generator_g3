@@ -17,7 +17,7 @@ import { parseTable } from './pgsql-parse'
 
 const paths = {
   outputPath: './output',
-  timestampOutputPath: resolve('./output', new Date().toISOString().replace(/:/g, '-')),
+  timestampOutputPath: resolve('./output', new Date().toISOString().replace(/:/g, '-'))
 }
 
 const errorStack: Array<string> = []
@@ -39,15 +39,13 @@ export async function runJavaCli(options: RunJavaCliOptions = {}): Promise<void>
       log.error(c.red(`File not found: ${filename}`))
       process.exit(1)
     }
-  }
-  else if (args.f || args.file) {
+  } else if (args.f || args.file) {
     filename = args.f || args.file
     if (!fs.existsSync(filename)) {
       log.error(c.red(`File not found: ${filename}`))
       process.exit(1)
     }
-  }
-  else {
+  } else {
     filename = await promptFilename()
   }
 
@@ -72,18 +70,19 @@ export async function runJavaCli(options: RunJavaCliOptions = {}): Promise<void>
     const isSuccess = await processTable(indexStr, parseResult)
     if (isSuccess) {
       successCount++
-    }
-    else {
+    } else {
       log.warn(c.yellow(`Skipping to next table... \n`))
       errorCount++
     }
   }
 
-  outro(`${c.cyan('Entity generate finished:')} ${c.green(successCount)} tables generated, ${c.red(errorCount)} tables failed.`)
+  outro(
+    `${c.cyan('Entity generate finished:')} ${c.green(successCount)} tables generated, ${c.red(errorCount)} tables failed.`
+  )
 
   if (errorStack.length > 0) {
     console.log(c.red(`Error stack:`))
-    errorStack.forEach(e => console.log(c.red(`- ${e}`)))
+    errorStack.forEach((e) => console.log(c.red(`- ${e}`)))
   }
 }
 
@@ -95,22 +94,24 @@ async function createOutput(): Promise<void> {
         rimrafSync(paths.outputPath)
         fs.mkdirSync(paths.timestampOutputPath, { recursive: true })
         return 'Created output directory.'
-      },
-    },
+      }
+    }
   ])
 }
 
 async function promptFilename(): Promise<string> {
-  const filename = String(await text({
-    message: 'What is the filename that contains the create table statements?',
-    placeholder: 'create.sql',
-    initialValue: 'create.sql',
-    validate(value) {
-      if (!fs.existsSync(value)) {
-        return 'File not found!'
+  const filename = String(
+    await text({
+      message: 'What is the filename that contains the create table statements?',
+      placeholder: 'create.sql',
+      initialValue: 'create.sql',
+      validate(value) {
+        if (!value || !fs.existsSync(value)) {
+          return 'File not found!'
+        }
       }
-    },
-  }))
+    })
+  )
 
   if (isCancel(filename)) {
     cancel('Operation cancelled.')
@@ -130,8 +131,8 @@ async function detectCreateTableStatements(filename: string): Promise<Array<stri
         const createTables = fs.readFileSync(filename, 'utf-8')
         statements = Array.from(createTables.match(/create table.*?;/gis) ?? [])
         return `Detected ${c.blue(statements.length)} create table statements.`
-      },
-    },
+      }
+    }
   ])
 
   if (statements.length === 0) {
@@ -149,8 +150,7 @@ async function parseTables(indexStr: string, table: string): Promise<ParseResult
     const astTable = await parseTable(table)
     s.stop(`${indexStr}Parsed table!`)
     return astTable
-  }
-  catch (error) {
+  } catch (error) {
     s.stop(c.red(`${indexStr}Error parse table:`))
     log.error(c.red(`${table} \n\n ${error instanceof Error ? error.message : error}`))
     errorStack.push(`${table} - ${error instanceof Error ? error.message : error}`)
@@ -166,8 +166,7 @@ async function processTable(indexStr: string, parseResult: ParseResult): Promise
     await generateEntity(parseResult)
     s.stop(`${indexStr}Generated table ${c.yellow(tableName)}.`)
     return true
-  }
-  catch (e) {
+  } catch (e) {
     s.stop(c.red(`${indexStr}Error generating table:`))
     log.error(c.red(`${e instanceof Error ? e.message : e}`))
     errorStack.push(`${e instanceof Error ? e.message : e}`)
@@ -178,8 +177,7 @@ async function processTable(indexStr: string, parseResult: ParseResult): Promise
 async function generateEntity(parseResult: ParseResult): Promise<void> {
   if (parseResult.isPartition) {
     return generatePartitionEntity(parseResult.ast)
-  }
-  else {
+  } else {
     return generateSimpleEntity(parseResult.ast)
   }
 }
@@ -211,25 +209,28 @@ function packageToPath(packageName: string): string {
 }
 
 async function javaAstToFile(javaAst: JavaAST, fileName: string, rootPath: string): Promise<void> {
-  const packageSrc = javaAst.body.find(node => node.type === 'PackageDeclaration')?.id.name
-  const className = javaAst.body.find(node => node.type === 'ClassDeclaration' || node.type === 'InterfaceDeclaration')?.id.name
+  const packageSrc = javaAst.body.find((node) => node.type === 'PackageDeclaration')?.id.name
+  const className = javaAst.body.find(
+    (node) => node.type === 'ClassDeclaration' || node.type === 'InterfaceDeclaration'
+  )?.id.name
   if (!packageSrc || !className) {
     throw new Error(`${fileName}' package or class name not found.`)
   }
+
   const packagePath = packageToPath(packageSrc)
   const filePath = resolve(rootPath, packagePath)
   if (!fs.existsSync(filePath)) {
     fs.mkdirSync(filePath, { recursive: true })
   }
+
   const fileNameWithExtension = `${className}.java`
   const filePathWithFileName = resolve(filePath, fileNameWithExtension)
   const code = generateJavaCode(javaAst)
+
   try {
     const formattedCode = await formatJavaCode(code.join('\n'))
     fs.writeFileSync(filePathWithFileName, formattedCode)
-  }
-  // eslint-disable-next-line unused-imports/no-unused-vars
-  catch (error) {
+  } catch {
     const errMsg = `Error formatting java code in file '${fileNameWithExtension}'`
     log.error(c.red(errMsg))
     errorStack.push(errMsg)

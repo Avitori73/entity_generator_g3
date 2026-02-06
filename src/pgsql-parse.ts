@@ -11,7 +11,7 @@ export async function parseTable(ddl: string): Promise<ParseResult> {
   return { ast: tryParseFirst(adapterDdl.ddl), isPartition: adapterDdl.isPartition }
 }
 
-export function partitionTableAdapter(ddl: string): { ddl: string, isPartition: boolean } {
+export function partitionTableAdapter(ddl: string): { ddl: string; isPartition: boolean } {
   // if ddl is partitioned table, the ddl will not be parsed correctly by 'pgsql-ast-parser'
   // so we need to remove the partition part and return the table ddl
   const partitionIndex = ddl.indexOf('PARTITION BY')

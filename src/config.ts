@@ -6,9 +6,7 @@ import ini from 'ini'
 
 const customRcPath = process.env.EGG_CONFIG_FILE
 
-const home = process.platform === 'win32'
-  ? process.env.USERPROFILE
-  : process.env.HOME
+const home = process.platform === 'win32' ? process.env.USERPROFILE : process.env.HOME
 
 const defaultRcPath = path.join(home || '~/', '.eggrc')
 
@@ -17,19 +15,19 @@ const rcPath = customRcPath || defaultRcPath
 const defaultConfig: Config = {
   prettierOptions: {
     tabWidth: 4,
-    printWidth: 120,
+    printWidth: 120
   },
 
   // entity
   entityPackage: 'com.a1stream.domain.entity',
   entitySuperClazz: {
     name: 'BaseEntity',
-    package: 'com.a1stream.common.model.BaseEntity',
+    package: 'com.a1stream.common.model.BaseEntity'
   },
   partitionEntityPackage: 'com.a1stream.domain.entity.partition',
   partitionEntitySuperClazz: {
     name: 'BasePartitionEntity',
-    package: 'com.a1stream.common.model.BasePartitionEntity',
+    package: 'com.a1stream.common.model.BasePartitionEntity'
   },
 
   // entity key
@@ -40,19 +38,19 @@ const defaultConfig: Config = {
   repositoryPackage: 'com.a1stream.domain.repository',
   repositorySuperClazz: {
     name: 'ExtensionRepository',
-    package: 'com.a1stream.common.jpa.repository.ExtensionRepository',
+    package: 'com.a1stream.common.jpa.repository.ExtensionRepository'
   },
 
   // vo
   voPackage: 'com.a1stream.domain.vo',
   voSuperClazz: {
     name: 'BaseVO',
-    package: 'com.a1stream.common.model.BaseVO',
+    package: 'com.a1stream.common.model.BaseVO'
   },
   partitionVoPackage: 'com.a1stream.domain.vo.partition',
   partitionVoSuperClazz: {
     name: 'BasePartitionVO',
-    package: 'com.a1stream.common.model.BasePartitionVO',
+    package: 'com.a1stream.common.model.BasePartitionVO'
   },
 
   partitionKey: 'dealer_partition_',
@@ -62,34 +60,34 @@ const defaultConfig: Config = {
     'create_author_',
     'create_date_',
     'update_program_',
-    'update_counter_',
+    'update_counter_'
   ],
   dataTypeMap: {
-    'bigint': 'Long',
-    'int8': 'Long',
-    'integer': 'Integer',
-    'int': 'Integer',
-    'int4': 'Integer',
-    'smallint': 'Integer',
-    'int2': 'Integer',
-    'date': 'LocalDate',
-    'timestamp': 'Instant',
-    'timestamptz': 'Instant',
-    'time': 'LocalTime',
-    'timetz': 'LocalTime',
-    'numeric': 'BigDecimal',
-    'decimal': 'BigDecimal',
+    bigint: 'Long',
+    int8: 'Long',
+    integer: 'Integer',
+    int: 'Integer',
+    int4: 'Integer',
+    smallint: 'Integer',
+    int2: 'Integer',
+    date: 'LocalDate',
+    timestamp: 'Instant',
+    timestamptz: 'Instant',
+    time: 'LocalTime',
+    timetz: 'LocalTime',
+    numeric: 'BigDecimal',
+    decimal: 'BigDecimal',
     'character varying': 'String',
-    'varchar': 'String',
-    'character': 'String',
-    'char': 'String',
-    'text': 'String',
-    'boolean': 'Boolean',
-    'bool': 'Boolean',
-    'bytea': 'byte[]',
-    'jsonb': 'String',
-    'json': 'String',
-    'bpchar': 'String',
+    varchar: 'String',
+    character: 'String',
+    char: 'String',
+    text: 'String',
+    boolean: 'Boolean',
+    bool: 'Boolean',
+    bytea: 'byte[]',
+    jsonb: 'String',
+    json: 'String',
+    bpchar: 'String'
   },
   dataImportMap: {
     numeric: 'java.math.BigDecimal',
@@ -100,7 +98,7 @@ const defaultConfig: Config = {
     timetz: 'java.time.LocalTime',
     date: 'java.time.LocalDate',
     jsonb: ['org.hibernate.annotations.Type', 'com.ymsl.solid.jpa.usertype.StringJsonUserType'],
-    json: ['org.hibernate.annotations.Type', 'com.ymsl.solid.jpa.usertype.StringJsonUserType'],
+    json: ['org.hibernate.annotations.Type', 'com.ymsl.solid.jpa.usertype.StringJsonUserType']
   },
   defaultVOImportMap: {
     integer: 'com.a1stream.common.constants.CommonConstants',
@@ -114,7 +112,7 @@ const defaultConfig: Config = {
     timestamp: 'java.time.Instant',
     time: 'java.time.LocalTime',
     timetz: 'java.time.LocalTime',
-    date: 'java.time.LocalDate',
+    date: 'java.time.LocalDate'
   },
   defaultVOValueMap: {
     integer: 'CommonConstants.INTEGER_ZERO',
@@ -123,8 +121,8 @@ const defaultConfig: Config = {
     smallint: 'CommonConstants.INTEGER_ZERO',
     int2: 'CommonConstants.INTEGER_ZERO',
     numeric: 'BigDecimal.ZERO',
-    decimal: 'BigDecimal.ZERO',
-  },
+    decimal: 'BigDecimal.ZERO'
+  }
 }
 
 let config: Config | undefined
@@ -134,9 +132,7 @@ export async function getConfig(): Promise<Config> {
     config = Object.assign(
       {},
       defaultConfig,
-      fs.existsSync(rcPath)
-        ? ini.parse(fs.readFileSync(rcPath, 'utf-8'))
-        : null,
+      fs.existsSync(rcPath) ? ini.parse(fs.readFileSync(rcPath, 'utf-8')) : null
     )
 
     config = Object.assign({}, defaultConfig)
@@ -149,8 +145,7 @@ export function init(): void {
   if (fs.existsSync(rcPath)) {
     const config = ini.parse(fs.readFileSync(rcPath, 'utf-8'))
     Object.assign(defaultConfig, config)
-  }
-  else {
+  } else {
     fs.writeFileSync(rcPath, ini.stringify(defaultConfig))
   }
 }

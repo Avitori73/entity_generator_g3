@@ -12,11 +12,13 @@ This is the entity generator for the G3 framework.
 1. Clone this repository locally.
 2. Enter the repository directory.
 3. Execute the following commands.
+
 ```Shell
 $ pnpm install
 $ pnpm run build
 $ npm install -g .
 ```
+
 4. After installation, you can use the entity_generator_g3 command egg globally.
 
 ## Usage Instructions
@@ -25,9 +27,11 @@ $ npm install -g .
 2. Place your table creation statements in the create.sql file.
 3. Right-click in the folder and select "Open in Terminal".
 4. Execute the following command
+
 ```Shell
 $ egg
 ```
+
 5. Follow the prompts to enter the table creation statement filename (default is create.sql), then press Enter to proceed.
 
 ## License
