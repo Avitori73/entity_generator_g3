@@ -38,6 +38,7 @@ class ColumnAstMetaBuilder {
   private columnAstMeta: ColumnAstMeta = {
     columnName: '',
     columnType: '',
+    columnDefault: undefined,
     columnDef: {
       name: '',
       length: undefined,
@@ -92,6 +93,11 @@ class ColumnAstMetaBuilder {
     return this
   }
 
+  public defaultValue(defaultValue: string): ColumnAstMetaBuilder {
+    this.columnAstMeta.columnDefault = defaultValue
+    return this
+  }
+
   public build(): ColumnAstMeta {
     return this.columnAstMeta
   }
@@ -138,7 +144,7 @@ export class JavaAstAdapter {
         fieldName: camelCase(column.columnName),
         fieldType: this.config.dataTypeMap[column.columnType] || 'String',
         imports: this.config.dataImportMap[column.columnType],
-        defaultValue: this.config.defaultVOValueMap[column.columnType],
+        defaultValue: column.columnDefault || this.config.defaultVOValueMap[column.columnType],
         defaultVOImport: this.config.defaultVOImportMap[column.columnType],
         ...column
       }
@@ -212,11 +218,33 @@ export class JavaAstAdapter {
           columnAstMetaBuilder.columnDefColumnDefinition(dataType.name)
         }
 
+        const defaultConstraint = constraints.find((c) => c.type === 'default')
+        if (defaultConstraint && defaultConstraint.default) {
+          const defaultDefinition = defaultConstraint.default
+          if (defaultDefinition && typeof defaultDefinition === 'object') {
+            switch (defaultDefinition.type) {
+              case 'cast':
+                this.setCastDefaultValue(defaultDefinition, columnAstMetaBuilder)
+                break
+              // handle other types of default value if needed
+              default:
+                break
+            }
+          }
+        }
+
         tableAstMetaBuilder.column(columnAstMetaBuilder.build())
       }
     })).statement(ast)
 
     return tableAstMetaBuilder.build()
+  }
+
+  private setCastDefaultValue(defaultDefinition: any, columnAstMetaBuilder: any): void {
+    if (defaultDefinition.operand.type === 'string') {
+      columnAstMetaBuilder.defaultValue(`"${defaultDefinition.operand.value}"`)
+    }
+    // handle other types of default value if needed
   }
 
   public getEntityMeta(): EntityMeta {
